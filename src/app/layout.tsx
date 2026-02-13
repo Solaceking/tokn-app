@@ -38,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${jetbrainsMono.variable} font-mono antialiased bg-background text-foreground min-h-screen`}
         style={{ fontFamily: '"JetBrains Mono", monospace' }}

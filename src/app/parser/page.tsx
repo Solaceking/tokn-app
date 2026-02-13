@@ -14,6 +14,7 @@ import {
   XCircle,
   Plus,
   Trash2,
+  Brain,
 } from 'lucide-react';
 import { scanForTokens, DetectedToken } from '@/lib/token-parser';
 import { useToknStore } from '@/lib/store';
@@ -39,6 +40,35 @@ export default function ParserPage() {
       setSelectedTokens(new Set(results.map(t => t.id)));
       setIsScanning(false);
     }, 300);
+  };
+
+  const handleAIParse = async () => {
+    setIsScanning(true);
+    try {
+      const res = await fetch('/api/parse/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: inputText }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        alert(data.error);
+        setIsScanning(false);
+        return;
+      }
+      
+      // Use the tokens returned from AI (or fallback)
+      const results = data.tokens || [];
+      setDetectedTokens(results);
+      setSelectedTokens(new Set(results.map((t: any) => t.id)));
+    } catch (error) {
+      console.error('AI parse error:', error);
+      alert('Failed to parse with AI');
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const toggleTokenSelection = (id: string) => {
@@ -184,14 +214,27 @@ database_url: "postgres://user:pass@host:5432/db"
                   onClick={handleScan}
                   disabled={!inputText.trim() || isScanning}
                   className={cn(
-                    'flex-1 px-6 py-3 font-bold uppercase transition-colors flex items-center justify-center gap-2',
+                    'flex-1 px-4 py-3 font-bold uppercase transition-colors flex items-center justify-center gap-2',
+                    inputText.trim() && !isScanning
+                      ? 'bg-[#404040] text-white border-2 border-[#404040] hover:border-[#FF9F1C] hover:text-[#FF9F1C]'
+                      : 'bg-[#262626] text-[#525252] border-2 border-[#262626] cursor-not-allowed'
+                  )}
+                >
+                  <Scan className="w-4 h-4" />
+                  {isScanning ? '...' : 'Regex'}
+                </button>
+                <button
+                  onClick={handleAIParse}
+                  disabled={!inputText.trim() || isScanning}
+                  className={cn(
+                    'flex-1 px-4 py-3 font-bold uppercase transition-colors flex items-center justify-center gap-2',
                     inputText.trim() && !isScanning
                       ? 'bg-[#FF9F1C] text-black border-2 border-[#FF9F1C] hover:bg-transparent hover:text-[#FF9F1C]'
                       : 'bg-[#262626] text-[#525252] border-2 border-[#262626] cursor-not-allowed'
                   )}
                 >
-                  <Scan className="w-4 h-4" />
-                  {isScanning ? 'Scanning...' : 'Scan for Tokens'}
+                  <Brain className="w-4 h-4" />
+                  {isScanning ? '...' : 'AI Parse'}
                 </button>
               </div>
             </div>

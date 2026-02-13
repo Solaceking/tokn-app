@@ -12,6 +12,25 @@ import { AIProviderType, AI_PROVIDER_CONFIGS, STATIC_MODELS } from '@/lib/ai-pro
 import { fetchModels, testApiKey } from '@/lib/ai-providers/service';
 import { prisma } from '@/lib/db';
 
+// Helper to get or create user in our database
+async function getOrCreateDbUser(supabaseUser: any) {
+  let dbUser = await prisma.users.findUnique({
+    where: { email: supabaseUser.email },
+  });
+  
+  if (!dbUser) {
+    dbUser = await prisma.users.create({
+      data: {
+        email: supabaseUser.email,
+        username: supabaseUser.email?.split('@')[0] || 'user',
+        full_name: supabaseUser.user_metadata?.full_name || null,
+      },
+    });
+  }
+  
+  return dbUser;
+}
+
 // GET /api/providers - List user's AI provider configurations
 export async function GET() {
   try {
@@ -22,8 +41,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    const dbUser = await getOrCreateDbUser(user);
+    
     const providers = await prisma.userAIProvider.findMany({
-      where: { userId: user.id },
+      where: { userId: dbUser.id },
       orderBy: { createdAt: 'desc' },
     });
     
@@ -90,6 +111,9 @@ export async function POST(request: Request) {
       );
     }
     
+    // Get or create database user
+    const dbUser = await getOrCreateDbUser(user);
+    
     // Encrypt the API key
     const encryptedKey = await encrypt(apiKey);
     
@@ -99,32 +123,45 @@ export async function POST(request: Request) {
     // If setting as default, unset other defaults
     if (isDefault) {
       await prisma.userAIProvider.updateMany({
-        where: { userId: user.id },
+        where: { userId: dbUser.id },
         data: { isDefault: false },
       });
     }
     
-    // Upsert the provider config
-    const savedProvider = await prisma.userAIProvider.upsert({
+    // Check if provider exists
+    const existingProvider = await prisma.userAIProvider.findUnique({
       where: {
         userId_provider: {
-          userId: user.id,
+          userId: dbUser.id,
           provider: provider as AIProviderType,
         },
       },
-      update: {
-        apiKey: encryptedKey,
-        selectedModel: model,
-        isDefault,
-      },
-      create: {
-        userId: user.id,
-        provider: provider as AIProviderType,
-        apiKey: encryptedKey,
-        selectedModel: model,
-        isDefault,
-      },
     });
+    
+    let savedProvider;
+    if (existingProvider) {
+      // Update existing
+      savedProvider = await prisma.userAIProvider.update({
+        where: { id: existingProvider.id },
+        data: {
+          apiKey: encryptedKey,
+          selectedModel: model,
+          isDefault,
+        },
+      });
+    } else {
+      // Create new
+      savedProvider = await prisma.userAIProvider.create({
+        data: {
+          userId: dbUser.id,
+          provider: provider as AIProviderType,
+          apiKey: encryptedKey,
+          selectedModel: model,
+          isDefault,
+          iv: '', // IV is embedded in encrypted string
+        },
+      });
+    }
     
     return NextResponse.json({
       id: savedProvider.id,
@@ -153,6 +190,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    const dbUser = await getOrCreateDbUser(user);
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
@@ -166,7 +205,7 @@ export async function DELETE(request: Request) {
     await prisma.userAIProvider.deleteMany({
       where: {
         id,
-        userId: user.id,
+        userId: dbUser.id,
       },
     });
     

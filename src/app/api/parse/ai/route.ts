@@ -11,6 +11,25 @@ import { parseWithAI } from '@/lib/ai-providers/service';
 import { prisma } from '@/lib/db';
 import { scanForTokens, DetectedToken } from '@/lib/token-parser';
 
+// Helper to get database user
+async function getDbUser(supabaseUser: any) {
+  let dbUser = await prisma.users.findUnique({
+    where: { email: supabaseUser.email },
+  });
+  
+  if (!dbUser) {
+    dbUser = await prisma.users.create({
+      data: {
+        email: supabaseUser.email,
+        username: supabaseUser.email?.split('@')[0] || 'user',
+        full_name: supabaseUser.user_metadata?.full_name || null,
+      },
+    });
+  }
+  
+  return dbUser;
+}
+
 // POST /api/parse/ai - Parse text using AI
 export async function POST(request: Request) {
   try {
@@ -20,6 +39,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    // Get database user
+    const dbUser = await getDbUser(user);
     
     const body = await request.json();
     const { text, provider: requestedProvider, useFallback = true } = body;
@@ -40,7 +62,7 @@ export async function POST(request: Request) {
       const savedProvider = await prisma.userAIProvider.findUnique({
         where: {
           userId_provider: {
-            userId: user.id,
+            userId: dbUser.id,
             provider: requestedProvider as AIProviderType,
           },
         },
@@ -57,7 +79,7 @@ export async function POST(request: Request) {
     if (!provider) {
       const defaultProvider = await prisma.userAIProvider.findFirst({
         where: {
-          userId: user.id,
+          userId: dbUser.id,
           isDefault: true,
         },
       });
@@ -72,7 +94,7 @@ export async function POST(request: Request) {
     // If still no provider, try any available
     if (!provider) {
       const anyProvider = await prisma.userAIProvider.findFirst({
-        where: { userId: user.id },
+        where: { userId: dbUser.id },
         orderBy: { createdAt: 'desc' },
       });
       

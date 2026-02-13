@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import Link from 'next/link';
+import { createBrowserClient } from '@supabase/ssr';
 import {
   Key,
   User,
@@ -13,6 +14,12 @@ import {
   Loader2,
   LogOut,
 } from 'lucide-react';
+
+// Create Supabase client
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface UserData {
   id: string;
@@ -76,7 +83,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    await signOut({ redirect: false });
+    await supabase.auth.signOut();
     router.push('/');
     router.refresh();
   };
@@ -92,7 +99,7 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        await signOut({ redirect: false });
+        await supabase.auth.signOut();
         router.push('/');
       } else {
         alert('Failed to delete account');
@@ -239,13 +246,5 @@ export default function ProfilePage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function Link({ href, children, className }: any) {
-  return (
-    <a href={href} className={className}>
-      {children}
-    </a>
   );
 }

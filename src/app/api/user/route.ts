@@ -1,34 +1,82 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
+
+// Helper to get authenticated user from Supabase
+async function getAuthenticatedUser() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+  
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return null;
+  }
+  
+  return user;
+}
 
 // GET current user data
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthenticatedUser();
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const userId = (session.user as any).id;
-    
-    const user = await db.user.findUnique({
-      where: { id: userId },
+    // Get user from our database (using email as identifier)
+    const dbUser = await db.users.findUnique({
+      where: { email: user.email },
       select: {
         id: true,
         email: true,
-        name: true,
-        createdAt: true,
+        full_name: true,
+        created_at: true,
       },
     });
     
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!dbUser) {
+      // If user doesn't exist in our DB, create them
+      const newUser = await db.users.create({
+        data: {
+          email: user.email,
+          username: user.email?.split('@')[0] || 'user',
+          full_name: user.user_metadata?.full_name || null,
+        },
+        select: {
+          id: true,
+          email: true,
+          full_name: true,
+          created_at: true,
+        },
+      });
+      
+      return NextResponse.json({
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.full_name,
+        createdAt: newUser.created_at,
+      });
     }
     
-    return NextResponse.json(user);
+    return NextResponse.json({
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.full_name,
+      createdAt: dbUser.created_at,
+    });
   } catch (error) {
     console.error('Get user error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -38,28 +86,32 @@ export async function GET() {
 // PATCH update user profile
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthenticatedUser();
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const userId = (session.user as any).id;
     const body = await request.json();
     const { name } = body;
     
-    const updatedUser = await db.user.update({
-      where: { id: userId },
-      data: { name },
+    const updatedUser = await db.users.update({
+      where: { email: user.email },
+      data: { full_name: name },
       select: {
         id: true,
         email: true,
-        name: true,
-        createdAt: true,
+        full_name: true,
+        created_at: true,
       },
     });
     
-    return NextResponse.json(updatedUser);
+    return NextResponse.json({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.full_name,
+      createdAt: updatedUser.created_at,
+    });
   } catch (error) {
     console.error('Update user error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -69,17 +121,15 @@ export async function PATCH(request: Request) {
 // DELETE delete user account
 export async function DELETE() {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthenticatedUser();
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const userId = (session.user as any).id;
-    
     // Delete all user data (cascade will handle tokens and activities)
-    await db.user.delete({
-      where: { id: userId },
+    await db.users.delete({
+      where: { email: user.email },
     });
     
     return NextResponse.json({ success: true });

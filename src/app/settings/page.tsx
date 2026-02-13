@@ -2,14 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { createBrowserClient } from '@supabase/ssr';
 import {
   Key,
   User,
   Shield,
   Palette,
-  Bell,
   KeyRound,
   Trash2,
   Loader2,
@@ -23,10 +22,17 @@ import {
 } from 'lucide-react';
 import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
 
+// Create Supabase client
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+ 
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, update: updateSession } = useSession();
+  const [session, setSession] = useState<any>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   
   // Get initial tab from URL or default to 'appearance'
   const initialTab = searchParams.get('tab') || 'appearance';
@@ -55,14 +61,26 @@ function SettingsContent() {
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  // Check session on mount
   useEffect(() => {
-    if (!session) {
+    const checkSession = async () => {
+      const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+      setSession(supabaseSession);
+      setSessionLoading(false);
+    };
+    checkSession();
+  }, []);
+
+  useEffect(() => {
+    if (!sessionLoading && !session) {
       router.push('/login');
       return;
     }
-    fetchUserData();
-    fetchApiKeys();
-  }, [session]);
+    if (session) {
+      fetchUserData();
+      fetchApiKeys();
+    }
+  }, [session, sessionLoading]);
 
   const fetchUserData = async () => {
     try {
@@ -105,7 +123,8 @@ function SettingsContent() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully' });
-        await updateSession();
+        // Refresh user data
+        fetchUserData();
       } else {
         setMessage({ type: 'error', text: 'Failed to update profile' });
       }
@@ -192,7 +211,7 @@ function SettingsContent() {
   };
 
   const handleLogout = async () => {
-    await signOut({ redirect: false });
+    await supabase.auth.signOut();
     router.push('/');
   };
 
@@ -212,7 +231,7 @@ function SettingsContent() {
         method: 'DELETE',
       });
       if (res.ok) {
-        await signOut({ redirect: false });
+        await supabase.auth.signOut();
         router.push('/');
       } else {
         alert('Failed to delete account');
