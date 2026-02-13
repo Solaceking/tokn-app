@@ -66,12 +66,12 @@ Build the most developer-friendly, open-source token manager with:
 
 - [x] Free tier (15 tokens, 1 user)
 - [x] Usage limits enforcement in API
+- [x] Stripe integration for payments
+- [x] Upgrade prompts in UI
 - [ ] Paid Pro tier ($7.99/user/month via Stripe)
   - Unlimited tokens
   - Team collaboration
   - Priority support
-- [ ] Stripe integration for payments
-- [ ] Upgrade prompts in UI
 
 ### Phase 5: Advanced Features (Planned 📝)
 
