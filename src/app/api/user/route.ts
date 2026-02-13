@@ -43,6 +43,7 @@ export async function GET() {
         id: true,
         email: true,
         full_name: true,
+        avatar_url: true,
         created_at: true,
       },
     });
@@ -59,6 +60,7 @@ export async function GET() {
           id: true,
           email: true,
           full_name: true,
+          avatar_url: true,
           created_at: true,
         },
       });
@@ -67,6 +69,7 @@ export async function GET() {
         id: newUser.id,
         email: newUser.email,
         name: newUser.full_name,
+        avatar_url: newUser.avatar_url,
         createdAt: newUser.created_at,
       });
     }
@@ -75,6 +78,7 @@ export async function GET() {
       id: dbUser.id,
       email: dbUser.email,
       name: dbUser.full_name,
+      avatar_url: dbUser.avatar_url,
       createdAt: dbUser.created_at,
     });
   } catch (error) {

@@ -19,6 +19,8 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
 
