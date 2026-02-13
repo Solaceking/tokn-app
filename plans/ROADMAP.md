@@ -1,169 +1,178 @@
-# TOKN - Development Roadmap
+# TOKN - Open Source Token Manager
 
-## Current Application State (Updated: Feb 2026)
-
-The TOKN app is a **Next.js 16** application for API token management with **multi-provider AI parsing**.
-
-### ✅ Completed Features
-
-- **Database**: Prisma schema with Token, UserAIProvider, Activity, ParseHistory models
-- **Server Encryption**: AES-256-GCM with per-encryption IV
-- **AI Providers**: Support for DeepSeek, OpenAI, Google Gemini, OpenRouter, Z.ai
-- **Provider API**: `/api/providers` (CRUD), `/api/providers/models` (fetch models)
-- **Token API**: Full CRUD with encryption at `/api/tokens`
-- **AI Parser API**: `/api/parse/ai` with fallback to regex
-- **Activity API**: `/api/activities` for logging
-- **UI**: Provider settings component with dropdown workflow
-- **Settings Page**: AI Providers tab integrated
-
-### ⚠️ In Progress
-
-- Frontend integration (connecting dashboard to API)
-- Supabase Auth integration (currently uses NextAuth patterns)
-- Testing (unit, integration, E2E)
-- Production deployment
+A secure, open-source token/API key manager for developers.
 
 ---
 
-## Architecture
+## 🎯 Vision
 
-```mermaid
-graph TB
-    subgraph "Client (Browser)"
-        UI[React Components]
-        ProviderSettings[Provider Settings UI]
-        Parser[Token Parser]
-    end
+Build the most developer-friendly, open-source token manager with:
+- **Security First** - AES-256-GCM encryption, never store plain tokens
+- **Open Source** - Free forever, donations optional (PayPal/Stripe)
+- **One-Click Deploy** - Deploy to Vercel in minutes
+- **Privacy Focused** - Your tokens, your data, your control
 
-    subgraph "Server (Next.js API)"
-        TokenAPI[/api/tokens]
-        ProviderAPI[/api/providers]
-        ParseAPI[/api/parse/ai]
-        Encrypt[Server Encryption]
-    end
+---
 
-    subgraph "Database (PostgreSQL/Supabase)"
-        Tokens[Token Table]
-        Providers[UserAIProvider Table]
-        Activities[Activity Table]
-    end
+## 📋 Roadmap
 
-    subgraph "External AI Providers"
-        DeepSeek[DeepSeek]
-        OpenAI[OpenAI]
-        Google[Google Gemini]
-        OpenRouter[OpenRouter]
-    end
+### Phase 1: MVP (Done ✅)
 
-    UI -->|HTTP| TokenAPI
-    UI -->|HTTP| ProviderAPI
-    UI -->|HTTP| ParseAPI
-    TokenAPI -->|CRUD| Tokens
-    ProviderAPI -->|CRUD| Providers
-    ParseAPI -->|Proxy| DeepSeek
-    ParseAPI -->|Proxy| OpenAI
-    ParseAPI -->|Proxy| Google
-    ParseAPI -->|Proxy| OpenRouter
-    TokenAPI -->|Encrypt| Encrypt
+- [x] User authentication (Supabase Auth)
+- [x] Token CRUD operations (Create, Read, Update, Delete)
+- [x] Server-side encryption (AES-256-GCM)
+- [x] Token parsing from text/code (AI-powered)
+- [x] Dark/Light theme
+- [x] Dashboard with stats
+- [x] Activity logging
+- [x] Export to .env
+
+### Phase 2: Production Ready (In Progress 🚧)
+
+- [ ] **Connect Dashboard to API** - Replace Zustand with real API (DONE)
+- [ ] Token status tracking (Active/Expiring/Expired)
+- [ ] "Test Token" button - Verify tokens are still valid
+- [ ] Passkey/WebAuthn support (via Supabase)
+- [ ] Team collaboration (invite team members)
+- [ ] Vercel one-click deploy button
+- [ ] README with installation instructions
+
+### Phase 3: Advanced Features (Planned 📝)
+
+- [ ] Token auto-rotation detection (manual check, not auto-rotate)
+- [ ] Usage analytics dashboard
+- [ ] Audit logs for compliance
+- [ ] Browser extension
+- [ ] CLI tool
+- [ ] Mobile app (React Native)
+
+### Phase 4: Enterprise (Future 🚀)
+
+- [ ] SSO/SAML integration
+- [ ] Custom branding
+- [ ] Priority support tiers
+- [ ] On-premise deployment option
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 14, React, TypeScript |
+| Styling | Tailwind CSS, shadcn/ui |
+| Backend | Next.js API Routes |
+| Database | PostgreSQL (Supabase) |
+| Auth | Supabase Auth (Email + Passkeys) |
+| Encryption | AES-256-GCM |
+| Deployment | Vercel |
+
+---
+
+## 📁 Project Structure
+
+```
+tokn-app/
+├── src/
+│   ├── app/
+│   │   ├── api/           # API routes
+│   │   ├── dashboard/     # Main dashboard
+│   │   ├── parser/        # Token parser page
+│   │   ├── settings/      # Settings page
+│   │   └── auth/          # Auth callbacks
+│   ├── components/
+│   │   ├── tokens/        # Token-related components
+│   │   └── ui/            # UI components (shadcn)
+│   └── lib/
+│       ├── encryption.ts   # Client-side encryption helpers
+│       ├── server-encryption.ts  # Server-side encryption
+│       ├── supabase.ts    # Supabase client
+│       └── db.ts          # Prisma client
+├── prisma/
+│   └── schema.prisma      # Database schema
+└── public/
 ```
 
 ---
 
-## Current Roadmap
+## 🔐 Security
 
-### Phase 1: Foundation ✅ COMPLETED
-- [x] Prisma schema with Token, UserAIProvider, Activity, ParseHistory
-- [x] AES-256-GCM server encryption
-- [x] AI Provider types and configs
-- [x] Provider service layer
-- [x] API endpoints for providers, tokens, activities, parsing
-- [x] Settings UI with provider management
+### Current Security Measures
 
-### Phase 2: Frontend Integration 🔄 IN PROGRESS
-- [ ] Connect dashboard to `/api/tokens`
-- [ ] Replace Zustand localStorage with React Query + API
-- [ ] Integrate Supabase Auth properly
-- [ ] Add loading states and error handling
+- **AES-256-GCM Encryption** - All tokens encrypted at rest
+- **Server-side decryption** - Only decrypt when needed
+- **Supabase Auth** - Secure session management
+- **Environment variables** - Encryption key stored in Vercel env vars
+- **No tracking** - No analytics, no external services
 
-### Phase 3: Security & Polish
-- [ ] Add Row Level Security (RLS) policies
-- [ ] Add rate limiting
-- [ ] Input validation (Zod schemas)
-- [ ] Error boundaries
+### Best Practices for Deployment
 
-### Phase 4: Testing
-- [ ] Unit tests (Vitest) - encryption, parsers
-- [ ] Integration tests - API routes
-- [ ] E2E tests (Playwright) - critical flows
-- [ ] Security audit
-
-### Phase 5: Deployment
-- [ ] Configure Vercel environment vars
-- [ ] Run Prisma migrations
-- [ ] Deploy to production
-- [ ] Verify all features work
+1. Set `ENCRYPTION_KEY` in Vercel environment variables
+2. Use Supabase Row Level Security (RLS)
+3. Enable HTTPS only in production
+4. Regular security audits
 
 ---
 
-## Environment Variables Required
+## 🚀 Deployment
 
-```
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.your-project.supabase.co:5432/postgres
+### One-Click Deploy to Vercel
 
-# Encryption (64 hex characters)
-ENCRYPTION_KEY=your-encryption-key-here
+```bash
+# 1. Fork this repository
+# 2. Go to https://vercel.com
+# 3. Click "Deploy"
+# 4. Add environment variables:
+#    - ENCRYPTION_KEY (generate via: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+#    - NEXT_PUBLIC_SUPABASE_URL
+#    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+#    - SUPABASE_SERVICE_ROLE_KEY
 ```
 
----
+### Manual Deployment
 
-## AI Provider Configuration
+```bash
+# Install dependencies
+npm install
 
-Users can configure multiple AI providers. Each provider:
-1. Select provider from dropdown
-2. Enter their API key (encrypted before storage)
-3. Select model from fetched list
-4. Optionally set as default
+# Setup database
+npx prisma generate
+npx prisma db push
 
-**Supported Providers:**
-- DeepSeek (V3, Coder, R1)
-- OpenAI (GPT-4o Mini, GPT-4o, o3-mini)
-- Google Gemini (2.0 Flash, 1.5 Pro)
-- OpenRouter (100+ models)
-- Z.ai
+# Run locally
+npm run dev
+```
 
 ---
 
-## API Endpoints
+## 💰 Monetization (Optional)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/providers` | List user's configured providers |
-| POST | `/api/providers` | Add/update provider |
-| DELETE | `/api/providers?id=` | Remove provider |
-| POST | `/api/providers/models` | Fetch models for provider |
-| GET | `/api/tokens` | List user's tokens |
-| POST | `/api/tokens` | Create token (encrypted) |
-| PATCH | `/api/tokens` | Update token |
-| DELETE | `/api/tokens?id=` | Delete token |
-| POST | `/api/tokens/[id]/decrypt` | Decrypt token value |
-| POST | `/api/parse/ai` | Parse text using AI |
-| GET | `/api/activities` | Get activity log |
+This is an **open source** project. To support development:
+
+1. **GitHub Sponsors**
+2. **PayPal Donations** - "Buy me a coffee"
+3. **Stripe Donations**
+4. **Premium Hosting** - Offer managed hosting for non-technical users ($5-19/mo)
 
 ---
 
-## Production Checklist
+## 🤝 Contributing
 
-Before deploying to Vercel:
-- [ ] Generate ENCRYPTION_KEY (64 hex chars)
-- [ ] Set up Supabase project with database
-- [ ] Run `npx prisma db push` or migrate
-- [ ] Add all env vars to Vercel
-- [ ] Test all API endpoints
-- [ ] Test provider configuration flow
+1. Fork the repo
+2. Create a feature branch
+3. Make your changes
+4. Submit a PR
 
 ---
 
-_Last Updated: February 2026_
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Supabase](https://supabase.com) - Open source Firebase alternative
+- [shadcn/ui](https://ui.shadcn.com) - Beautiful components
+- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS
