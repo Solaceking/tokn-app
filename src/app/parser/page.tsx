@@ -15,15 +15,14 @@ import {
   Plus,
   Trash2,
   Brain,
+  LogOut,
 } from 'lucide-react';
 import { scanForTokens, DetectedToken } from '@/lib/token-parser';
-import { useToknStore } from '@/lib/store';
 import { useAppTheme } from '@/hooks/use-theme';
 import { maskToken } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
 
 export default function ParserPage() {
-  const { addToken, tokens } = useToknStore();
   const { theme, toggleTheme } = useAppTheme();
 
   const [inputText, setInputText] = useState('');
@@ -81,20 +80,30 @@ export default function ParserPage() {
     setSelectedTokens(newSet);
   };
 
-  const handleSaveSelected = () => {
+  const handleSaveSelected = async () => {
     const tokensToSave = detectedTokens.filter(t => selectedTokens.has(t.id));
+    let saved = 0;
 
-    tokensToSave.forEach(t => {
-      addToken({
-        service: t.name,
-        token: t.value,
-        description: t.description,
-        category: t.category,
-        status: 'ACTIVE',
-      });
-    });
+    for (const t of tokensToSave) {
+      try {
+        const res = await fetch('/api/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service: t.name,
+            token: t.value,
+            description: t.description,
+            category: t.category,
+            status: 'ACTIVE',
+          }),
+        });
+        if (res.ok) saved++;
+      } catch (e) {
+        console.error('Failed to save token:', e);
+      }
+    }
 
-    setSavedCount(tokensToSave.length);
+    setSavedCount(saved);
     setTimeout(() => setSavedCount(0), 3000);
 
     // Clear saved tokens from the list
