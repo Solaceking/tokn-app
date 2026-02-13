@@ -21,6 +21,8 @@ import {
   Check,
   Camera,
   Upload,
+  Crown,
+  Zap,
 } from 'lucide-react';
 import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
 
@@ -253,9 +255,25 @@ function SettingsContent() {
     );
   }
 
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch('/api/stripe/checkout', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('Failed to start upgrade');
+    }
+  };
+
+  const isPro = user?.plan === 'PRO';
+
   const tabs = [
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'plan', label: 'Plan', icon: Crown },
     { id: 'ai-providers', label: 'AI Providers', icon: Key },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: KeyRound },
@@ -420,6 +438,73 @@ function SettingsContent() {
                     Save Changes
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Plan Tab */}
+            {activeTab === 'plan' && (
+              <div className="border-2 border-[#404040] bg-[#171717] p-6">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-[#FF9F1C]" />
+                  Your Plan
+                </h2>
+                
+                {/* Current Plan */}
+                <div className={`p-4 border-2 mb-6 ${isPro ? 'border-[#FF9F1C] bg-[#FF9F1C]/10' : 'border-[#404040]'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {isPro ? (
+                          <span className="text-[#FF9F1C] font-bold flex items-center gap-2">
+                            <Crown className="w-5 h-5" /> PRO
+                          </span>
+                        ) : (
+                          <span className="text-white font-bold flex items-center gap-2">
+                            <Zap className="w-5 h-5" /> Free
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-[#737373] mt-1">
+                        {isPro 
+                          ? 'You have unlimited tokens and team features!' 
+                          : '15 tokens max, 1 user'}
+                      </p>
+                    </div>
+                    {!isPro && (
+                      <button
+                        onClick={handleUpgrade}
+                        className="px-6 py-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 flex items-center gap-2"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Upgrade to Pro
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                {!isPro && (
+                  <div className="border-2 border-[#404040] p-6">
+                    <h3 className="font-bold mb-4">Pro Plan - $7.99/user/month</h3>
+                    <ul className="space-y-2 text-sm text-[#737373] mb-6">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> Unlimited tokens
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> Team collaboration
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> Priority support
+                      </li>
+                    </ul>
+                    <button
+                      onClick={handleUpgrade}
+                      className="w-full py-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90"
+                    >
+                      Upgrade Now
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
