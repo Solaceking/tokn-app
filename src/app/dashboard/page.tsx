@@ -21,12 +21,14 @@ import {
   EyeOff,
   Trash2,
   FileCode,
+  HelpCircle,
 } from 'lucide-react';
 import { maskToken, copyToClipboard, formatRelativeTime } from '@/lib/encryption';
 import { useAppTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import { AddTokenModal } from '@/components/tokens/AddTokenModal';
 import { TokenDetailModal } from '@/components/tokens/TokenDetailModal';
+import { WelcomeTutorial } from '@/components/WelcomeTutorial';
 
 // Types
 interface Token {
@@ -604,6 +606,9 @@ export default function DashboardPage() {
           }}
         />
       )}
+
+      {/* Welcome Tutorial */}
+      <WelcomeTutorial />
     </div>
   );
 }
