@@ -16,14 +16,27 @@ import {
   Trash2,
   Brain,
   LogOut,
+  User,
 } from 'lucide-react';
 import { scanForTokens, DetectedToken } from '@/lib/token-parser';
 import { useAppTheme } from '@/hooks/use-theme';
 import { maskToken } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
+import { createBrowserClient } from '@supabase/ssr';
+import { useEffect, useState } from 'react';
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function ParserPage() {
   const { theme, toggleTheme } = useAppTheme();
+  const [user, setUser] = useState<{ name: string; email: string; avatar_url?: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/user').then(res => res.ok && res.json()).then(data => setUser(data)).catch(() => {});
+  }, []);
 
   const [inputText, setInputText] = useState('');
   const [detectedTokens, setDetectedTokens] = useState<DetectedToken[]>([]);
@@ -172,14 +185,31 @@ export default function ParserPage() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="border-b-2 border-[#404040] bg-[#171717] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <FileCode className="w-6 h-6 text-[#FF9F1C]" />
-            <h1 className="text-xl font-bold uppercase tracking-wider">Smart Token Parser</h1>
+        <header className="border-b-2 border-[#404040] bg-[#171717] px-6 py-4 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <FileCode className="w-6 h-6 text-[#FF9F1C]" />
+              <h1 className="text-xl font-bold uppercase tracking-wider">Smart Token Parser</h1>
+            </div>
+            <p className="text-sm text-[#737373] mt-1">
+              Paste text containing API tokens. We will detect and extract them automatically.
+            </p>
           </div>
-          <p className="text-sm text-[#737373] mt-1">
-            Paste text containing API tokens. We will detect and extract them automatically.
-          </p>
+          {/* User Info */}
+          {user && (
+            <div className="flex items-center gap-3 pl-4 border-l border-[#404040]">
+              <div className="w-8 h-8 bg-[#262626] border border-[#404040] flex items-center justify-center text-[#737373] font-bold text-sm">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'
+                )}
+              </div>
+              <div className="hidden md:block">
+                <div className="text-sm font-bold text-white">{user.name || user.email?.split('@')[0]}</div>
+              </div>
+            </div>
+          )}
         </header>
 
         {/* Content */}
