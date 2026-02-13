@@ -8,9 +8,26 @@ A secure, open-source token/API key manager for developers.
 
 Build the most developer-friendly, open-source token manager with:
 - **Security First** - AES-256-GCM encryption, never store plain tokens
-- **Open Source** - Free forever, donations optional (PayPal/Stripe)
+- **Open Source** - Free forever, donations optional (Paypal/Stripe)
 - **One-Click Deploy** - Deploy to Vercel in minutes
 - **Privacy Focused** - Your tokens, your data, your control
+- **Freemium** - Free tier (15 tokens) + Paid Pro tier ($9/mo)
+
+---
+
+## 💰 Pricing
+
+### Free Tier
+- **15 tokens** max
+- **1 user** only
+- All core features
+- Self-host forever
+
+### Pro Tier ($9/mo)
+- **Unlimited tokens**
+- **Team collaboration** (invite members)
+- **Priority support**
+- Hosted by us
 
 ---
 
@@ -44,7 +61,18 @@ Build the most developer-friendly, open-source token manager with:
 - [ ] Passkey/WebAuthn support (requires Supabase Pro - not free)
 - [ ] Team collaboration (invite team members)
 
-### Phase 4: Advanced Features (Planned 📝)
+### Phase 4: Monetization (In Progress 🚧)
+
+- [ ] Free tier (15 tokens, 1 user)
+- [ ] Paid Pro tier ($9/mo via Stripe)
+  - Unlimited tokens
+  - Team collaboration
+  - Priority support
+- [ ] Stripe integration for payments
+- [ ] Usage limits enforcement in API
+- [ ] Upgrade prompts in UI
+
+### Phase 5: Advanced Features (Planned 📝)
 
 - [ ] Token auto-rotation detection (manual check, not auto-rotate)
 - [ ] Usage analytics dashboard
@@ -53,7 +81,7 @@ Build the most developer-friendly, open-source token manager with:
 - [ ] CLI tool
 - [ ] Mobile app (React Native)
 
-### Phase 5: Enterprise (Future 🚀)
+### Phase 6: Enterprise (Future 🚀)
 
 - [ ] SSO/SAML integration
 - [ ] Custom branding
