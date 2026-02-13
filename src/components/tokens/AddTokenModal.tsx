@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Plus, Eye, EyeOff, CheckCircle } from 'lucide-react';
-import { useToknStore } from '@/lib/store';
+import { X, Plus, Eye, EyeOff, CheckCircle, Loader2 } from 'lucide-react';
 import { detectTokenType } from '@/lib/token-parser';
 import { cn } from '@/lib/utils';
 
@@ -18,14 +17,18 @@ const CATEGORIES = [
   'Other',
 ];
 
-export function AddTokenModal({ onClose }: { onClose: () => void }) {
-  const addToken = useToknStore((state) => state.addToken);
+interface AddTokenModalProps {
+  onClose: () => void;
+  onSuccess?: () => void;
+}
 
+export function AddTokenModal({ onClose, onSuccess }: AddTokenModalProps) {
   const [service, setService] = useState('');
   const [token, setToken] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Other');
   const [showToken, setShowToken] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [detectedInfo, setDetectedInfo] = useState<{
     name: string;
     category: string;
@@ -51,19 +54,37 @@ export function AddTokenModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!service || !token) return;
 
-    addToken({
-      service,
-      token,
-      description,
-      category,
-      status: 'ACTIVE',
-    });
+    setSaving(true);
+    try {
+      const res = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service,
+          token,
+          description,
+          category,
+          status: 'ACTIVE',
+        }),
+      });
 
-    onClose();
+      if (res.ok) {
+        if (onSuccess) onSuccess();
+        onClose();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to save token');
+      }
+    } catch (error) {
+      console.error('Failed to save token:', error);
+      alert('Failed to save token');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -171,16 +192,16 @@ export function AddTokenModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              disabled={!service || !token}
+              disabled={!service || !token || saving}
               className={cn(
                 'flex-1 px-4 py-3 font-bold uppercase transition-colors flex items-center justify-center gap-2',
-                service && token
+                service && token && !saving
                   ? 'bg-[#FF9F1C] text-black border-2 border-[#FF9F1C] hover:bg-transparent hover:text-[#FF9F1C]'
                   : 'bg-[#262626] text-[#525252] border-2 border-[#262626] cursor-not-allowed'
               )}
             >
-              <Plus className="w-4 h-4" />
-              Save Token
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {saving ? 'Saving...' : 'Save Token'}
             </button>
           </div>
         </form>

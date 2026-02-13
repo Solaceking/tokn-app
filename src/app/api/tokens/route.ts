@@ -9,8 +9,27 @@ import { encryptToken, decryptToken } from '@/lib/server-encryption';
 import { prisma } from '@/lib/db';
 import { TokenStatus } from '@prisma/client';
 
+// Helper to get database user
+async function getDbUser(supabaseUser: any) {
+  let dbUser = await prisma.users.findUnique({
+    where: { email: supabaseUser.email },
+  });
+  
+  if (!dbUser) {
+    dbUser = await prisma.users.create({
+      data: {
+        email: supabaseUser.email,
+        username: supabaseUser.email?.split('@')[0] || 'user',
+        full_name: supabaseUser.user_metadata?.full_name || null,
+      },
+    });
+  }
+  
+  return dbUser;
+}
+
 // GET /api/tokens - Get all tokens for current user
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -19,10 +38,33 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get database user
+    const dbUser = await getDbUser(user);
+    
+    // Check for export query param
+    const { searchParams } = new URL(request.url);
+    const exportType = searchParams.get('export');
+    
     const tokens = await prisma.token.findMany({
-      where: { userId: user.id },
+      where: { userId: dbUser.id },
       orderBy: { createdAt: 'desc' },
     });
+    
+    // Handle export
+    if (exportType === 'env') {
+      // Decrypt tokens for export
+      const envLines = await Promise.all(tokens.map(async (t) => {
+        const decrypted = await decryptToken(t.token);
+        const serviceName = t.service.toUpperCase().replace(/\s+/g, '_');
+        return `${serviceName}=${decrypted}`;
+      }));
+      
+      return new NextResponse(envLines.join('\n'), {
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+      });
+    }
     
     // Return tokens without decrypting (frontend shows masked)
     return NextResponse.json(tokens);
@@ -45,6 +87,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    // Get database user
+    const dbUser = await getDbUser(user);
+    
     const body = await request.json();
     const { service, token, description, category, status } = body;
     
@@ -65,12 +110,12 @@ export async function POST(request: Request) {
         description: description || '',
         category: category || 'Other',
         status: (status as TokenStatus) || 'ACTIVE',
-        userId: user.id,
+        userId: dbUser.id,
       },
     });
     
     // Log activity
-    await logActivity(user.id, 'CREATE', service, 'Token created');
+    await logActivity(dbUser.id, 'CREATE', service, 'Token created');
     
     return NextResponse.json(newToken);
   } catch (error) {

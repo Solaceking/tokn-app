@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Key,
@@ -23,12 +22,35 @@ import {
   Trash2,
   FileCode,
 } from 'lucide-react';
-import { useToknStore, getDecryptedToken } from '@/lib/store';
 import { maskToken, copyToClipboard, formatRelativeTime } from '@/lib/encryption';
 import { useAppTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import { AddTokenModal } from '@/components/tokens/AddTokenModal';
 import { TokenDetailModal } from '@/components/tokens/TokenDetailModal';
+
+// Types
+interface Token {
+  id: string;
+  service: string;
+  token: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'EXPIRING';
+  category: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Activity {
+  id: string;
+  action: string;
+  service: string;
+  details?: string;
+  createdAt: string;
+}
+
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Stats Card Component
 function StatCard({
@@ -75,30 +97,14 @@ function TokenCard({
   token,
   onDelete,
   onClick,
+  onCopy,
 }: {
-  token: {
-    id: string;
-    service: string;
-    token: string;
-    status: 'ACTIVE' | 'EXPIRED' | 'EXPIRING';
-    category: string;
-    updatedAt: string;
-  };
+  token: Token;
   onDelete: () => void;
   onClick: () => void;
+  onCopy: () => void;
 }) {
   const [showToken, setShowToken] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const decrypted = getDecryptedToken(token.token);
-    const success = await copyToClipboard(decrypted);
-    if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   const statusColors = {
     ACTIVE: 'bg-green-600 text-white',
@@ -133,7 +139,7 @@ function TokenCard({
       <div className="px-4 py-3 bg-[#0a0a0a] border-b border-[#262626]">
         <div className="flex items-center justify-between">
           <code className="text-sm text-[#737373] font-mono truncate max-w-[180px]">
-            {showToken ? getDecryptedToken(token.token) : maskToken(getDecryptedToken(token.token))}
+            {showToken ? token.token : maskToken(token.token)}
           </code>
           <button
             onClick={(e) => {
@@ -154,15 +160,13 @@ function TokenCard({
         </span>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleCopy}
-            className={cn(
-              'p-2 border transition-colors',
-              copied
-                ? 'border-green-600 text-green-600'
-                : 'border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C]'
-            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            className="p-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
           >
-            {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            <Copy className="w-4 h-4" />
           </button>
           <button
             onClick={(e) => {
@@ -183,12 +187,12 @@ function TokenCard({
 function ActivityItem({
   action,
   service,
-  timestamp,
+  createdAt,
   details,
 }: {
   action: string;
   service: string;
-  timestamp: string;
+  createdAt: string;
   details?: string;
 }) {
   const actionIcons: Record<string, React.ElementType> = {
@@ -217,7 +221,7 @@ function ActivityItem({
         )}
       </div>
       <span className="text-xs text-[#525252] shrink-0">
-        {formatRelativeTime(timestamp)}
+        {formatRelativeTime(createdAt)}
       </span>
     </div>
   );
@@ -225,22 +229,66 @@ function ActivityItem({
 
 // Main Dashboard Page
 export default function DashboardPage() {
-  const {
-    tokens,
-    activities,
-    deleteToken,
-    addActivity,
-    exportToEnv,
-    exportToJson,
-    user,
-  } = useToknStore();
-
   const { theme, toggleTheme } = useAppTheme();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedToken, setSelectedToken] = useState<string | null>(null);
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  
+  // Data from API
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('User');
+
+  // Fetch tokens from API
+  const fetchTokens = async () => {
+    try {
+      const res = await fetch('/api/tokens');
+      if (res.ok) {
+        const data = await res.json();
+        setTokens(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tokens:', error);
+    }
+  };
+
+  // Fetch activities from API
+  const fetchActivities = async () => {
+    try {
+      const res = await fetch('/api/activities');
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(data.activities || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch activities:', error);
+    }
+  };
+
+  // Fetch user data
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/user');
+      if (res.ok) {
+        const data = await res.json();
+        setUserName(data.name || data.email?.split('@')[0] || 'User');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([fetchTokens(), fetchActivities(), fetchUser()]);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
 
   // Stats
   const totalTokens = tokens.length;
@@ -253,27 +301,58 @@ export default function DashboardPage() {
     token.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Export handlers
-  const handleExportEnv = () => {
-    const content = exportToEnv();
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '.env';
-    a.click();
-    URL.revokeObjectURL(url);
+  // Delete token via API
+  const handleDeleteToken = async (tokenId: string) => {
+    if (!confirm('Are you sure you want to delete this token?')) return;
+    
+    try {
+      const res = await fetch(`/api/tokens?id=${tokenId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTokens(tokens.filter(t => t.id !== tokenId));
+        fetchActivities(); // Refresh activities
+      }
+    } catch (error) {
+      console.error('Failed to delete token:', error);
+    }
   };
 
-  const handleExportJson = () => {
-    const content = exportToJson();
-    const blob = new Blob([content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'tokens.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  // Copy token via API
+  const handleCopyToken = async (token: Token) => {
+    try {
+      const res = await fetch(`/api/tokens/${token.id}/decrypt`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        await copyToClipboard(data.token);
+      }
+    } catch (error) {
+      console.error('Failed to copy token:', error);
+    }
+  };
+
+  // Export handlers
+  const handleExportEnv = async () => {
+    try {
+      const res = await fetch('/api/tokens?export=env');
+      if (res.ok) {
+        const content = await res.text();
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '.env';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Failed to export:', error);
+    }
+  };
+
+  // Handle token added from modal
+  const handleTokenAdded = () => {
+    fetchTokens();
+    fetchActivities();
+    setShowAddModal(false);
   };
 
   // Keyboard shortcuts
@@ -296,6 +375,14 @@ export default function DashboardPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-[#FF9F1C]">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex">
@@ -401,7 +488,7 @@ export default function DashboardPage() {
           {/* User */}
           <div className="flex items-center gap-3 pl-4 border-l border-[#404040]">
             <div className="w-8 h-8 bg-[#262626] border border-[#404040] flex items-center justify-center text-[#737373] font-bold text-sm">
-              {user?.name?.[0]?.toUpperCase() || 'U'}
+              {userName[0]?.toUpperCase() || 'U'}
             </div>
           </div>
         </header>
@@ -431,7 +518,7 @@ export default function DashboardPage() {
               />
               <StatCard
                 title="Last Activity"
-                value={activities[0] ? formatRelativeTime(activities[0].timestamp) : 'Never'}
+                value={activities[0] ? formatRelativeTime(activities[0].createdAt) : 'Never'}
                 icon={Clock}
               />
             </div>
@@ -467,8 +554,9 @@ export default function DashboardPage() {
                   <TokenCard
                     key={token.id}
                     token={token}
-                    onDelete={() => deleteToken(token.id)}
-                    onClick={() => setSelectedToken(token.id)}
+                    onDelete={() => handleDeleteToken(token.id)}
+                    onClick={() => setSelectedToken(token)}
+                    onCopy={() => handleCopyToken(token)}
                   />
                 ))}
               </div>
@@ -490,7 +578,7 @@ export default function DashboardPage() {
                     key={activity.id}
                     action={activity.action}
                     service={activity.service}
-                    timestamp={activity.timestamp}
+                    createdAt={activity.createdAt}
                     details={activity.details}
                   />
                 ))
@@ -502,13 +590,18 @@ export default function DashboardPage() {
 
       {/* Modals */}
       {showAddModal && (
-        <AddTokenModal onClose={() => setShowAddModal(false)} />
+        <AddTokenModal onClose={() => setShowAddModal(false)} onSuccess={handleTokenAdded} />
       )}
 
       {selectedToken && (
         <TokenDetailModal
-          tokenId={selectedToken}
+          token={selectedToken}
           onClose={() => setSelectedToken(null)}
+          onUpdate={fetchTokens}
+          onDelete={() => {
+            handleDeleteToken(selectedToken.id);
+            setSelectedToken(null);
+          }}
         />
       )}
     </div>
