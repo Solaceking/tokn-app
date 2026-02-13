@@ -22,6 +22,8 @@ import {
   Trash2,
   FileCode,
   HelpCircle,
+  Github,
+  Twitter,
 } from 'lucide-react';
 import { maskToken, copyToClipboard, formatRelativeTime } from '@/lib/encryption';
 import { useAppTheme } from '@/hooks/use-theme';
@@ -442,6 +444,35 @@ export default function DashboardPage() {
             {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
             {sidebarOpen && <span className="uppercase text-sm font-bold">Toggle Theme</span>}
           </button>
+        </div>
+
+        {/* Share / Star */}
+        <div className="p-2 border-t border-[#404040]">
+          <div className={sidebarOpen ? 'px-3 py-2' : 'flex justify-center'}>
+            {sidebarOpen && <span className="text-xs text-[#525252] uppercase mb-2 block">Share</span>}
+            <div className="flex gap-2">
+              <a
+                href="https://github.com/Solaceking/tokn-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
+                title="Star on GitHub"
+              >
+                <Github className="w-4 h-4" />
+                {sidebarOpen && <span className="text-xs font-bold">Star</span>}
+              </a>
+              <a
+                href="https://twitter.com/intent/tweet?text=Check+out+TOKN:+A+secure+open+source+token+manager+for+developers&url=https://github.com/Solaceking/tokn-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#1DA1F2] hover:text-[#1DA1F2] transition-colors"
+                title="Share on Twitter"
+              >
+                <Twitter className="w-4 h-4" />
+                {sidebarOpen && <span className="text-xs font-bold">Tweet</span>}
+              </a>
+            </div>
+          </div>
         </div>
       </aside>
 
