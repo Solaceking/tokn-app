@@ -1,0 +1,47 @@
+// This is your Prisma schema file
+// Using Supabase Auth - tokens are linked to Supabase user_id
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Note: For Supabase, we use the auth.users table directly
+// This table stores additional token data linked to Supabase user IDs
+
+model Token {
+  id          String      @id @default(cuid())
+  service     String
+  token       String      // Encrypted storage
+  description String?
+  category    String
+  status      TokenStatus @default(ACTIVE)
+  userId      String      // This is the Supabase user ID
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   // Hashed API key
+  prefix      String   // First 8 characters for display
+  userId      String   // Supabase user ID
+  lastUsed    DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum TokenStatus {
+  ACTIVE
+  EXPIRED
+  EXPIRING
+}
