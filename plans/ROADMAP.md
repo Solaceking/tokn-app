@@ -27,17 +27,24 @@ Build the most developer-friendly, open-source token manager with:
 - [x] Activity logging
 - [x] Export to .env
 
-### Phase 2: Production Ready (In Progress 🚧)
+### Phase 2: Production Ready (Done ✅)
 
-- [ ] **Connect Dashboard to API** - Replace Zustand with real API (DONE)
-- [ ] Token status tracking (Active/Expiring/Expired)
-- [ ] "Test Token" button - Verify tokens are still valid
+- [x] Connect Dashboard to API - Replace Zustand with real API
+- [x] Token status tracking (Active/Expiring/Expired)
+- [x] "Test Token" button - Verify tokens are still valid
+- [x] Vercel one-click deploy button
+- [x] README with installation instructions
+- [x] Welcome Tutorial - First-time user onboarding
+- [x] Help/Wiki Page - FAQ, features, security docs
+
+### Phase 3: User Features (In Progress 🚧)
+
+- [ ] User avatar/profile photo support
+- [ ] Login stats - show who's logged in on all screens
 - [ ] Passkey/WebAuthn support (via Supabase)
 - [ ] Team collaboration (invite team members)
-- [ ] Vercel one-click deploy button
-- [ ] README with installation instructions
 
-### Phase 3: Advanced Features (Planned 📝)
+### Phase 4: Advanced Features (Planned 📝)
 
 - [ ] Token auto-rotation detection (manual check, not auto-rotate)
 - [ ] Usage analytics dashboard
@@ -46,7 +53,7 @@ Build the most developer-friendly, open-source token manager with:
 - [ ] CLI tool
 - [ ] Mobile app (React Native)
 
-### Phase 4: Enterprise (Future 🚀)
+### Phase 5: Enterprise (Future 🚀)
 
 - [ ] SSO/SAML integration
 - [ ] Custom branding
@@ -77,19 +84,21 @@ tokn-app/
 │   ├── app/
 │   │   ├── api/           # API routes
 │   │   ├── dashboard/     # Main dashboard
-│   │   ├── parser/        # Token parser page
-│   │   ├── settings/      # Settings page
-│   │   └── auth/          # Auth callbacks
+│   │   ├── parser/       # Token parser page
+│   │   ├── settings/     # Settings page
+│   │   ├── help/         # Help/Wiki page
+│   │   └── auth/         # Auth callbacks
 │   ├── components/
-│   │   ├── tokens/        # Token-related components
-│   │   └── ui/            # UI components (shadcn)
+│   │   ├── tokens/       # Token-related components
+│   │   ├── layout/      # Layout components (Header)
+│   │   └── ui/          # UI components (shadcn)
 │   └── lib/
-│       ├── encryption.ts   # Client-side encryption helpers
-│       ├── server-encryption.ts  # Server-side encryption
-│       ├── supabase.ts    # Supabase client
-│       └── db.ts          # Prisma client
+│       ├── encryption.ts       # Client-side encryption helpers
+│       ├── server-encryption.ts # Server-side encryption
+│       ├── supabase.ts        # Supabase client
+│       └── db.ts              # Prisma client
 ├── prisma/
-│   └── schema.prisma      # Database schema
+│   └── schema.prisma    # Database schema
 └── public/
 ```
 
