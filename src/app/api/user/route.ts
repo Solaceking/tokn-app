@@ -97,15 +97,20 @@ export async function PATCH(request: Request) {
     }
     
     const body = await request.json();
-    const { name } = body;
+    const { name, avatar_url } = body;
+    
+    const updateData: any = {};
+    if (name !== undefined) updateData.full_name = name;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     
     const updatedUser = await db.users.update({
       where: { email: user.email },
-      data: { full_name: name },
+      data: updateData,
       select: {
         id: true,
         email: true,
         full_name: true,
+        avatar_url: true,
         created_at: true,
       },
     });
@@ -114,6 +119,7 @@ export async function PATCH(request: Request) {
       id: updatedUser.id,
       email: updatedUser.email,
       name: updatedUser.full_name,
+      avatar_url: updatedUser.avatar_url,
       createdAt: updatedUser.created_at,
     });
   } catch (error) {

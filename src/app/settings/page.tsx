@@ -41,11 +41,12 @@ function SettingsContent() {
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // User state
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null; createdAt: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; name: string | null; avatar_url: string | null; createdAt: string } | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Form states
   const [name, setName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
@@ -91,6 +92,7 @@ function SettingsContent() {
         const data = await res.json();
         setUser(data);
         setName(data.name || '');
+        setAvatarUrl(data.avatar_url || '');
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -120,7 +122,7 @@ function SettingsContent() {
       const res = await fetch('/api/user', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, avatar_url: avatarUrl }),
       });
 
       if (res.ok) {
@@ -362,6 +364,21 @@ function SettingsContent() {
                     </div>
                   )}
 
+                  {/* Avatar Preview */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-20 h-20 bg-[#262626] border-2 border-[#404040] flex items-center justify-center overflow-hidden">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10 text-[#737373]" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#737373] mb-1">Profile Photo</p>
+                      <p className="text-xs text-[#525252]">Paste a URL for your avatar</p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm text-[#737373] mb-2">Email</label>
                     <input
@@ -380,6 +397,17 @@ function SettingsContent() {
                       onChange={(e) => setName(e.target.value)}
                       className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
                       placeholder="Your name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-[#737373] mb-2">Avatar URL</label>
+                    <input
+                      type="url"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
+                      placeholder="https://example.com/avatar.jpg"
                     />
                   </div>
 
