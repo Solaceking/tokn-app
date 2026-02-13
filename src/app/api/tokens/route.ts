@@ -1,8 +1,15 @@
+/**
+ * Token Management API
+ * Uses Supabase Auth and Prisma with server-side encryption
+ */
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { encryptToken } from '@/lib/server-encryption';
+import { encryptToken, decryptToken } from '@/lib/server-encryption';
+import { prisma } from '@/lib/db';
+import { TokenStatus } from '@prisma/client';
 
-// GET all tokens for the current user
+// GET /api/tokens - Get all tokens for current user
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -12,25 +19,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { data: tokens, error } = await supabase
-      .from('tokens')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    const tokens = await prisma.token.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
     
-    if (error) {
-      console.error('Get tokens error:', error);
-      return NextResponse.json({ error: 'Failed to fetch tokens' }, { status: 500 });
-    }
-    
-    return NextResponse.json(tokens || []);
+    // Return tokens without decrypting (frontend shows masked)
+    return NextResponse.json(tokens);
   } catch (error) {
     console.error('Get tokens error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch tokens' },
+      { status: 500 }
+    );
   }
 }
 
-// POST create a new token
+// POST /api/tokens - Create a new token
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -51,34 +56,33 @@ export async function POST(request: Request) {
     }
     
     // Encrypt the token before storing
-    const encryptedToken = encryptToken(token);
+    const encryptedToken = await encryptToken(token);
     
-    const { data: newToken, error } = await supabase
-      .from('tokens')
-      .insert({
+    const newToken = await prisma.token.create({
+      data: {
         service,
         token: encryptedToken,
         description: description || '',
         category: category || 'Other',
-        status: status || 'ACTIVE',
-        user_id: user.id,
-      })
-      .select()
-      .single();
+        status: (status as TokenStatus) || 'ACTIVE',
+        userId: user.id,
+      },
+    });
     
-    if (error) {
-      console.error('Create token error:', error);
-      return NextResponse.json({ error: 'Failed to create token' }, { status: 500 });
-    }
+    // Log activity
+    await logActivity(user.id, 'CREATE', service, 'Token created');
     
     return NextResponse.json(newToken);
   } catch (error) {
     console.error('Create token error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create token' },
+      { status: 500 }
+    );
   }
 }
 
-// PATCH update a token
+// PATCH /api/tokens - Update a token
 export async function PATCH(request: Request) {
   try {
     const supabase = await createClient();
@@ -92,37 +96,64 @@ export async function PATCH(request: Request) {
     const { id, service, token, description, category, status } = body;
     
     if (!id) {
-      return NextResponse.json({ error: 'Token ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Token ID is required' },
+        { status: 400 }
+      );
     }
     
-    const updateData: any = {};
+    // Build update data
+    const updateData: {
+      service?: string;
+      description?: string;
+      category?: string;
+      status?: TokenStatus;
+      token?: string;
+      updatedAt: Date;
+    } = {
+      updatedAt: new Date(),
+    };
+    
     if (service) updateData.service = service;
     if (description !== undefined) updateData.description = description;
     if (category) updateData.category = category;
-    if (status) updateData.status = status;
-    if (token) updateData.token = encryptToken(token);
+    if (status) updateData.status = status as TokenStatus;
+    if (token) updateData.token = await encryptToken(token);
     
-    const { data: updatedToken, error } = await supabase
-      .from('tokens')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    const updatedToken = await prisma.token.updateMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+      data: updateData,
+    });
     
-    if (error) {
-      console.error('Update token error:', error);
-      return NextResponse.json({ error: 'Failed to update token' }, { status: 500 });
+    if (updatedToken.count === 0) {
+      return NextResponse.json(
+        { error: 'Token not found' },
+        { status: 404 }
+      );
     }
     
-    return NextResponse.json(updatedToken);
+    // Log activity
+    await logActivity(user.id, 'UPDATE', service || 'Token', 'Token updated');
+    
+    // Return the updated token
+    const tokenData = await prisma.token.findUnique({
+      where: { id },
+    });
+    
+    return NextResponse.json(tokenData);
   } catch (error) {
     console.error('Update token error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update token' },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE a token
+// DELETE /api/tokens - Delete a token
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient();
@@ -136,23 +167,65 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     
     if (!id) {
-      return NextResponse.json({ error: 'Token ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Token ID is required' },
+        { status: 400 }
+      );
     }
     
-    const { error } = await supabase
-      .from('tokens')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+    // Get token info before deleting for activity log
+    const token = await prisma.token.findFirst({
+      where: { id, userId: user.id },
+    });
     
-    if (error) {
-      console.error('Delete token error:', error);
-      return NextResponse.json({ error: 'Failed to delete token' }, { status: 500 });
+    const result = await prisma.token.deleteMany({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
+    
+    if (result.count === 0) {
+      return NextResponse.json(
+        { error: 'Token not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Log activity
+    if (token) {
+      await logActivity(user.id, 'DELETE', token.service, 'Token deleted');
     }
     
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete token error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete token' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Helper to log activity
+ */
+async function logActivity(
+  userId: string,
+  action: string,
+  service: string,
+  details?: string
+): Promise<void> {
+  try {
+    await prisma.activity.create({
+      data: {
+        userId,
+        action,
+        service,
+        details,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to log activity:', error);
   }
 }

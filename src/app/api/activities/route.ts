@@ -1,50 +1,51 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+/**
+ * Activity Logging API
+ * GET: Fetch user's activity log
+ */
 
-// GET activities for the current user
-export async function GET() {
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+import { prisma } from '@/lib/db';
+
+// GET /api/activities - Get user's activity log
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const userId = (session.user as any).id;
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
     
-    const activities = await db.activity.findMany({
-      where: { userId },
+    const activities = await prisma.activity.findMany({
+      where: { userId: user.id },
       orderBy: { timestamp: 'desc' },
-      take: 100,
+      take: Math.min(limit, 100),
+      skip: offset,
     });
     
-    return NextResponse.json(activities);
+    const total = await prisma.activity.count({
+      where: { userId: user.id },
+    });
+    
+    return NextResponse.json({
+      activities,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + activities.length < total,
+      },
+    });
   } catch (error) {
     console.error('Get activities error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-// DELETE clear all activities
-export async function DELETE() {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const userId = (session.user as any).id;
-    
-    await db.activity.deleteMany({
-      where: { userId },
-    });
-    
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Clear activities error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch activities' },
+      { status: 500 }
+    );
   }
 }

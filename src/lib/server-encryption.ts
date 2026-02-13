@@ -1,107 +1,184 @@
-// Server-side encryption utilities using Node.js crypto
-// Uses AES-256-GCM for authenticated encryption
-import crypto from 'crypto';
+/**
+ * Production-grade server-side encryption
+ * Uses AES-256-GCM with random IV for each encryption
+ */
 
-const ALGORITHM = 'aes-256-gcm';
-const KEY_LENGTH = 32;
-const IV_LENGTH = 12;
-const TAG_LENGTH = 16;
-const SALT_LENGTH = 16;
-const ITERATIONS = 100000;
+const ALGORITHM = 'AES-GCM';
+const KEY_LENGTH = 32; // 256 bits
+const IV_LENGTH = 16; // 128 bits for GCM (recommended)
+const TAG_LENGTH = 128; // Authentication tag
 
 /**
- * Get the master encryption key from environment
+ * Get or derive encryption key from environment
+ * Key must be 32 bytes (64 hex characters)
  */
-function getMasterKey(): Buffer {
-  const key = process.env.ENCRYPTION_KEY;
-  if (!key) {
-    throw new Error('ENCRYPTION_KEY environment variable is not set');
+function getEncryptionKey(): Uint8Array {
+  const keyHex = process.env.ENCRYPTION_KEY;
+  
+  if (!keyHex) {
+    throw new Error('ENCRYPTION_KEY environment variable is required');
   }
-  // Use the key directly (should be 32 bytes base64 encoded)
-  return Buffer.from(key, 'base64');
+  
+  if (keyHex.length !== 64) {
+    throw new Error('ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
+  }
+  
+  // Convert hex to Uint8Array
+  const key = new Uint8Array(KEY_LENGTH);
+  for (let i = 0; i < 64; i += 2) {
+    key[i / 2] = parseInt(keyHex.substring(i, i + 2), 16);
+  }
+  
+  return key;
 }
 
 /**
- * Derive a key from the master key using PBKDF2
+ * Generate a cryptographically secure random IV
  */
-function deriveKey(masterKey: Buffer, salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(masterKey, salt, ITERATIONS, KEY_LENGTH, 'sha256');
+function generateIV(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 }
 
 /**
- * Encrypt a token value
- * Returns a base64 string containing: salt + iv + encrypted data + tag
+ * Convert Uint8Array to base64 string
  */
-export function encryptToken(plaintext: string): string {
+function toBase64(buffer: Uint8Array): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Convert base64 string to Uint8Array
+ */
+function fromBase64(str: string): Uint8Array {
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Encrypt text using AES-256-GCM
+ * Returns base64-encoded string with format: iv:ciphertext:tag (all base64)
+ */
+export async function encrypt(text: string): Promise<string> {
+  if (!text) return text;
+  
   try {
-    const masterKey = getMasterKey();
-    const salt = crypto.randomBytes(SALT_LENGTH);
-    const iv = crypto.randomBytes(IV_LENGTH);
+    const keyData = getEncryptionKey();
+    const iv = generateIV();
     
-    const key = deriveKey(masterKey, salt);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: ALGORITHM },
+      false,
+      ['encrypt']
+    );
     
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
     
-    let encrypted = cipher.update(plaintext, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
+    const encrypted = await crypto.subtle.encrypt(
+      {
+        name: ALGORITHM,
+        iv,
+        tagLength: TAG_LENGTH,
+      },
+      cryptoKey,
+      data
+    );
     
-    const tag = cipher.getAuthTag();
+    // Combine IV + ciphertext
+    const encryptedArray = new Uint8Array(encrypted);
+    const combined = new Uint8Array(iv.length + encryptedArray.length);
+    combined.set(iv);
+    combined.set(encryptedArray, iv.length);
     
-    // Combine: salt (16) + iv (12) + encrypted + tag (16)
-    const combined = Buffer.concat([salt, iv, Buffer.from(encrypted, 'base64'), tag]);
-    return combined.toString('base64');
+    return toBase64(combined);
   } catch (error) {
     console.error('Encryption error:', error);
-    throw new Error('Failed to encrypt token');
+    throw new Error('Failed to encrypt data');
   }
 }
 
 /**
- * Decrypt a token value
+ * Decrypt text encrypted with encrypt()
+ * Expects base64-encoded string with format: iv:ciphertext:tag
  */
-export function decryptToken(encryptedData: string): string {
+export async function decrypt(encryptedBase64: string): Promise<string> {
+  if (!encryptedBase64) return encryptedBase64;
+  
   try {
-    const masterKey = getMasterKey();
-    const combined = Buffer.from(encryptedData, 'base64');
+    const keyData = getEncryptionKey();
+    const combined = fromBase64(encryptedBase64);
     
-    const salt = combined.slice(0, SALT_LENGTH);
-    const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-    const tag = combined.slice(-TAG_LENGTH);
-    const encrypted = combined.slice(SALT_LENGTH + IV_LENGTH, -TAG_LENGTH);
+    // Extract IV and ciphertext
+    const iv = combined.slice(0, IV_LENGTH);
+    const ciphertext = combined.slice(IV_LENGTH);
     
-    const key = deriveKey(masterKey, salt);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: ALGORITHM },
+      false,
+      ['decrypt']
+    );
     
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(tag);
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: ALGORITHM,
+        iv,
+        tagLength: TAG_LENGTH,
+      },
+      cryptoKey,
+      ciphertext
+    );
     
-    let decrypted = decipher.update(encrypted);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    
-    return decrypted.toString('utf8');
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
   } catch (error) {
     console.error('Decryption error:', error);
-    throw new Error('Failed to decrypt token');
+    throw new Error('Failed to decrypt data - key may be incorrect');
   }
 }
 
 /**
- * Hash a password using SHA-256 (for demo purposes)
- * In production, use bcrypt or argon2
+ * Encrypt a token (alias for encrypt)
  */
-export function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+export async function encryptToken(token: string): Promise<string> {
+  return encrypt(token);
 }
 
 /**
- * Verify a password against a hash
+ * Decrypt a token (alias for decrypt)
  */
-export function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
+export async function decryptToken(encryptedToken: string): Promise<string> {
+  return decrypt(encryptedToken);
 }
 
 /**
- * Generate a secure random token
+ * Hash an API key for display purposes (not for storage)
+ * Shows first 8 and last 4 characters
  */
-export function generateSecureToken(length: number = 32): string {
-  return crypto.randomBytes(length).toString('hex');
+export function maskApiKey(key: string): string {
+  if (!key || key.length < 16) return '••••••••';
+  return `${key.slice(0, 8)}...${key.slice(-4)}`;
+}
+
+/**
+ * Generate a new encryption key (for setup purposes)
+ * Run this once and save the output to ENCRYPTION_KEY
+ */
+export function generateEncryptionKey(): string {
+  const key = crypto.getRandomValues(new Uint8Array(KEY_LENGTH));
+  return Array.from(key)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }

@@ -1,12 +1,21 @@
+/**
+ * Token Decryption API
+ * POST: Decrypt and return a token value (requires authentication)
+ */
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { decryptToken } from '@/lib/server-encryption';
+import { prisma } from '@/lib/db';
 
-export async function GET(
+// POST /api/tokens/[id]/decrypt - Decrypt a token
+export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -14,25 +23,63 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { id } = await params;
+    // Get the token
+    const token = await prisma.token.findFirst({
+      where: {
+        id,
+        userId: user.id,
+      },
+    });
     
-    const { data: token, error } = await supabase
-      .from('tokens')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
-    
-    if (error || !token) {
-      return NextResponse.json({ error: 'Token not found' }, { status: 404 });
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token not found' },
+        { status: 404 }
+      );
     }
     
     // Decrypt the token
-    const decrypted = decryptToken(token.token);
+    const decryptedToken = await decryptToken(token.token);
     
-    return NextResponse.json({ token: decrypted });
+    // Log the reveal activity
+    await logActivity(user.id, 'REVEAL', token.service, 'Token decrypted for viewing');
+    
+    return NextResponse.json({
+      id: token.id,
+      service: token.service,
+      token: decryptedToken,
+      description: token.description,
+      category: token.category,
+      status: token.status,
+    });
   } catch (error) {
     console.error('Decrypt token error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to decrypt token' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Helper to log activity
+ */
+async function logActivity(
+  userId: string,
+  action: string,
+  service: string,
+  details?: string
+): Promise<void> {
+  try {
+    await prisma.activity.create({
+      data: {
+        userId,
+        action,
+        service,
+        details,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to log activity:', error);
   }
 }

@@ -1,4 +1,4 @@
-// This is your Prisma schema file
+// TOKN Prisma Schema
 // Using Supabase Auth - tokens are linked to Supabase user_id
 
 generator client {
@@ -10,9 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Note: For Supabase, we use the auth.users table directly
-// This table stores additional token data linked to Supabase user IDs
-
+// Token storage with encrypted values
 model Token {
   id          String      @id @default(cuid())
   service     String
@@ -20,28 +18,69 @@ model Token {
   description String?
   category    String
   status      TokenStatus @default(ACTIVE)
-  userId      String      // This is the Supabase user ID
+  userId      String      // Supabase auth.users.id
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@index([userId])
+  @@map("tokens")
 }
 
-model ApiKey {
-  id          String   @id @default(cuid())
-  name        String
-  key         String   // Hashed API key
-  prefix      String   // First 8 characters for display
-  userId      String   // Supabase user ID
-  lastUsed    DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
+// User's AI provider configurations (encrypted API keys)
+model UserAIProvider {
+  id            String    @id @default(cuid())
+  userId        String    // Supabase auth.users.id
+  provider      AIProvider
+  apiKey        String    // Encrypted API key
+  selectedModel String    // e.g., "gpt-4o-mini", "deepseek-chat"
+  isDefault     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("user_ai_providers")
+}
+
+// Activity logging
+model Activity {
+  id        String   @id @default(cuid())
+  userId    String   // Supabase auth.users.id
+  action    String   // CREATE, UPDATE, DELETE, COPY, REVEAL, PARSE
+  service   String   // Token service or AI provider
+  details   String?
+  timestamp DateTime @default(now())
 
   @@index([userId])
+  @@index([timestamp])
+  @@map("activities")
+}
+
+// AI parsing history
+model ParseHistory {
+  id        String   @id @default(cuid())
+  userId    String   // Supabase auth.users.id
+  provider  String   // Which AI provider was used
+  model     String   // Which model
+  inputText String   // Truncated input preview
+  tokensFound Int    // Number of tokens extracted
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("parse_history")
 }
 
 enum TokenStatus {
   ACTIVE
   EXPIRED
   EXPIRING
+}
+
+enum AIProvider {
+  OPENAI
+  DEEPSEEK
+  GOOGLE
+  OPENROUTER
+  ZAI
 }

@@ -21,6 +21,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
 
 function SettingsContent() {
   const router = useRouter();
@@ -232,6 +233,7 @@ function SettingsContent() {
   const tabs = [
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'ai-providers', label: 'AI Providers', icon: Key },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: KeyRound },
   ];
@@ -369,6 +371,24 @@ function SettingsContent() {
                     Save Changes
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* AI Providers Tab */}
+            {activeTab === 'ai-providers' && (
+              <div className="border-2 border-[#404040] bg-[#171717] p-6">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-[#FF9F1C]" />
+                  AI Providers
+                </h2>
+                <p className="text-[#737373] text-sm mb-6">
+                  Configure AI providers for smart token parsing. Your API keys are encrypted and stored securely.
+                </p>
+                
+                {/* AI Provider Settings Component */}
+                <div id="ai-providers-content">
+                  <AIProviderSettings />
+                </div>
               </div>
             )}
 

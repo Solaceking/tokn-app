@@ -336,7 +336,7 @@ export default function DashboardPage() {
             {sidebarOpen && <span className="uppercase text-sm font-bold">Activity</span>}
           </a>
           <a
-            href="/"
+            href="/settings"
             className="flex items-center gap-3 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
           >
             <Settings className="w-5 h-5 shrink-0" />

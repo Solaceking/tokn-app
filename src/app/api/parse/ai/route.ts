@@ -1,195 +1,206 @@
+/**
+ * AI Token Parser API
+ * POST: Parse text for tokens using user's configured AI provider
+ */
+
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+import { decrypt } from '@/lib/server-encryption';
+import { AIProviderType } from '@/lib/ai-providers/types';
+import { parseWithAI } from '@/lib/ai-providers/service';
+import { prisma } from '@/lib/db';
+import { scanForTokens, DetectedToken } from '@/lib/token-parser';
 
-// AI-powered token parser using pattern matching + heuristics
-// This is a robust solution that combines regex patterns with AI-like heuristics
-
-interface ParsedToken {
-  id: string;
-  name: string;
-  value: string;
-  category: string;
-  confidence: number;
-  description: string;
-}
-
-// Comprehensive token patterns
-const TOKEN_PATTERNS = [
-  // AI/ML
-  { pattern: /sk-[a-zA-Z0-9]{20,}/g, name: 'OpenAI', category: 'AI/ML', description: 'OpenAI API Key' },
-  { pattern: /sk-proj-[a-zA-Z0-9_-]{20,}/g, name: 'OpenAI Project', category: 'AI/ML', description: 'OpenAI Project API Key' },
-  { pattern: /sk-ant-[a-zA-Z0-9_-]{20,}/g, name: 'Anthropic', category: 'AI/ML', description: 'Anthropic API Key' },
-  { pattern: /hf_[a-zA-Z0-9]{20,}/g, name: 'Hugging Face', category: 'AI/ML', description: 'Hugging Face Token' },
-  { pattern: /r8_[a-zA-Z0-9]{20,}/g, name: 'Replicate', category: 'AI/ML', description: 'Replicate API Token' },
-  
-  // Version Control
-  { pattern: /ghp_[a-zA-Z0-9]{36}/g, name: 'GitHub PAT', category: 'Version Control', description: 'GitHub Personal Access Token' },
-  { pattern: /gho_[a-zA-Z0-9]{36}/g, name: 'GitHub OAuth', category: 'Version Control', description: 'GitHub OAuth Token' },
-  { pattern: /ghu_[a-zA-Z0-9]{36}/g, name: 'GitHub App', category: 'Version Control', description: 'GitHub App User Token' },
-  { pattern: /ghr_[a-zA-Z0-9]{36}/g, name: 'GitHub Refresh', category: 'Version Control', description: 'GitHub Refresh Token' },
-  
-  // Payments
-  { pattern: /sk_live_[a-zA-Z0-9]{24,}/g, name: 'Stripe Live', category: 'Payments', description: 'Stripe Live Secret Key' },
-  { pattern: /sk_test_[a-zA-Z0-9]{24,}/g, name: 'Stripe Test', category: 'Payments', description: 'Stripe Test Secret Key' },
-  { pattern: /pk_live_[a-zA-Z0-9]{24,}/g, name: 'Stripe Public', category: 'Payments', description: 'Stripe Live Public Key' },
-  { pattern: /pk_test_[a-zA-Z0-9]{24,}/g, name: 'Stripe Test Public', category: 'Payments', description: 'Stripe Test Public Key' },
-  
-  // Cloud Providers
-  { pattern: /AKIA[A-Z0-9]{16}/g, name: 'AWS Access Key', category: 'Cloud', description: 'AWS Access Key ID' },
-  { pattern: /AIza[a-zA-Z0-9_-]{35}/g, name: 'Google API', category: 'Cloud', description: 'Google API Key' },
-  { pattern: /ya29\.[a-zA-Z0-9_-]+/g, name: 'Google OAuth', category: 'Cloud', description: 'Google OAuth Token' },
-  
-  // Communication
-  { pattern: /xoxb-[a-zA-Z0-9-]+/g, name: 'Slack Bot', category: 'Communication', description: 'Slack Bot Token' },
-  { pattern: /xoxa-[a-zA-Z0-9-]+/g, name: 'Slack App', category: 'Communication', description: 'Slack App Token' },
-  { pattern: /xoxp-[a-zA-Z0-9-]+/g, name: 'Slack User', category: 'Communication', description: 'Slack User Token' },
-  
-  // Productivity
-  { pattern: /secret_[a-zA-Z0-9]{40,}/g, name: 'Notion', category: 'Productivity', description: 'Notion Integration Token' },
-  { pattern: /sk-[a-zA-Z0-9]{32,}/g, name: 'Linear', category: 'Productivity', description: 'Linear API Key' },
-  
-  // Database
-  { pattern: /postgres(ql)?:\/\/[^\s]+/g, name: 'PostgreSQL', category: 'Database', description: 'PostgreSQL Connection String' },
-  { pattern: /mysql:\/\/[^\s]+/g, name: 'MySQL', category: 'Database', description: 'MySQL Connection String' },
-  { pattern: /mongodb(\+srv)?:\/\/[^\s]+/g, name: 'MongoDB', category: 'Database', description: 'MongoDB Connection String' },
-  { pattern: /redis:\/\/[^\s]+/g, name: 'Redis', category: 'Database', description: 'Redis Connection String' },
-  
-  // Deployment
-  { pattern: /vercel_[a-zA-Z0-9]{20,}/g, name: 'Vercel', category: 'Deployment', description: 'Vercel Token' },
-  { pattern: /netlify_[a-zA-Z0-9]{20,}/g, name: 'Netlify', category: 'Deployment', description: 'Netlify Token' },
-  { pattern: /sk_live_[a-zA-Z0-9]{20,}/g, name: 'Railway', category: 'Deployment', description: 'Railway Token' },
-  
-  // Crypto
-  { pattern: /sk_live_[a-zA-Z0-9]{20,}/g, name: 'Coinbase', category: 'Crypto', description: 'Coinbase API Key' },
-  
-  // Generic patterns for unknown tokens
-  { pattern: /[a-zA-Z]{2,}_[a-zA-Z0-9]{20,}/g, name: 'Unknown', category: 'Other', description: 'Generic API Token' },
-];
-
-function detectTokenType(value: string): { name: string; category: string; description: string; confidence: number } {
-  // Check patterns first
-  for (const tokenPattern of TOKEN_PATTERNS) {
-    if (tokenPattern.pattern.test(value)) {
-      return {
-        name: tokenPattern.name,
-        category: tokenPattern.category,
-        description: tokenPattern.description,
-        confidence: 0.95,
-      };
-    }
-  }
-  
-  // AI-like heuristic analysis for unknown tokens
-  const heuristics: { name: string; category: string; test: (v: string) => boolean; weight: number }[] = [
-    { name: 'Generic API Key', category: 'API', test: (v) => v.length > 20 && /^[a-zA-Z0-9_-]+$/.test(v), weight: 0.7 },
-    { name: 'Bearer Token', category: 'API', test: (v) => v.startsWith('Bearer '), weight: 0.9 },
-    { name: 'Base64 Token', category: 'API', test: (v) => /^[A-Za-z0-9+/=]{20,}$/.test(v), weight: 0.6 },
-    { name: 'JWT', category: 'Auth', test: (v) => v.split('.').length === 3, weight: 0.95 },
-    { name: 'Hex Token', category: 'API', test: (v) => /^[a-fA-F0-9]{32,}$/.test(v), weight: 0.7 },
-    { name: 'UUID', category: 'Other', test: (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v), weight: 0.5 },
-  ];
-  
-  for (const heuristic of heuristics) {
-    if (heuristic.test(value)) {
-      return {
-        name: heuristic.name,
-        category: heuristic.category,
-        description: `Detected as ${heuristic.name}`,
-        confidence: heuristic.weight,
-      };
-    }
-  }
-  
-  return {
-    name: 'Unknown',
-    category: 'Other',
-    description: 'Unrecognized token format',
-    confidence: 0.3,
-  };
-}
-
-function generateId(): string {
-  return `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
+// POST /api/parse/ai - Parse text using AI
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { text } = body;
-
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
-    }
-
-    const detectedTokens: ParsedToken[] = [];
-    const foundValues = new Set<string>();
-
-    // First pass: detect using patterns
-    for (const tokenPattern of TOKEN_PATTERNS) {
-      const regex = new RegExp(tokenPattern.pattern.source, 'g');
-      let match;
-      
-      while ((match = regex.exec(text)) !== null) {
-        const value = match[0];
-        
-        // Skip duplicates
-        if (foundValues.has(value)) continue;
-        foundValues.add(value);
-        
-        const result = detectTokenType(value);
-        
-        detectedTokens.push({
-          id: generateId(),
-          name: tokenPattern.name,
-          value,
-          category: tokenPattern.category,
-          description: tokenPattern.description,
-          confidence: result.confidence,
-        });
-      }
-    }
-
-    // Second pass: heuristic analysis for any remaining potential tokens
-    // Look for things that look like tokens but weren't caught by patterns
-    const potentialTokenPatterns = [
-      /[a-zA-Z]{2,}_[a-zA-Z0-9]{15,}/g,           // prefix_something...
-      /[a-zA-Z0-9]{32,}/g,                          // Long alphanumeric strings
-      /[a-zA-Z]{3,}-[a-zA-Z0-9]{20,}/g,            // service-xxx...
-    ];
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    for (const pattern of potentialTokenPatterns) {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const value = match[0];
-        
-        if (foundValues.has(value)) continue;
-        
-        // Check if it looks like a real token (not random text)
-        const uniqueChars = new Set(value).size;
-        if (uniqueChars < 10) continue; // Too repetitive, likely not a token
-        
-        foundValues.add(value);
-        const result = detectTokenType(value);
-        
-        detectedTokens.push({
-          id: generateId(),
-          name: result.name,
-          value,
-          category: result.category,
-          description: result.description,
-          confidence: result.confidence * 0.8, // Lower confidence for heuristic matches
-        });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const body = await request.json();
+    const { text, provider: requestedProvider, useFallback = true } = body;
+    
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Text is required' },
+        { status: 400 }
+      );
+    }
+    
+    let provider: AIProviderType | null = null;
+    let apiKey: string | null = null;
+    let selectedModel: string | null = null;
+    
+    // If specific provider requested, use it
+    if (requestedProvider) {
+      const savedProvider = await prisma.userAIProvider.findUnique({
+        where: {
+          userId_provider: {
+            userId: user.id,
+            provider: requestedProvider as AIProviderType,
+          },
+        },
+      });
+      
+      if (savedProvider) {
+        provider = savedProvider.provider as AIProviderType;
+        apiKey = await decrypt(savedProvider.apiKey);
+        selectedModel = savedProvider.selectedModel;
       }
     }
-
-    // Sort by confidence (highest first)
-    detectedTokens.sort((a, b) => b.confidence - a.confidence);
-
+    
+    // If no provider specified or not found, use default
+    if (!provider) {
+      const defaultProvider = await prisma.userAIProvider.findFirst({
+        where: {
+          userId: user.id,
+          isDefault: true,
+        },
+      });
+      
+      if (defaultProvider) {
+        provider = defaultProvider.provider as AIProviderType;
+        apiKey = await decrypt(defaultProvider.apiKey);
+        selectedModel = defaultProvider.selectedModel;
+      }
+    }
+    
+    // If still no provider, try any available
+    if (!provider) {
+      const anyProvider = await prisma.userAIProvider.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      if (anyProvider) {
+        provider = anyProvider.provider as AIProviderType;
+        apiKey = await decrypt(anyProvider.apiKey);
+        selectedModel = anyProvider.selectedModel;
+      }
+    }
+    
+    // If no AI provider configured, fall back to regex parser
+    if (!provider || !apiKey) {
+      if (useFallback) {
+        const tokens = scanForTokens(text);
+        
+        // Log the parse activity
+        await logParseActivity(user.id, 'regex', 'regex-fallback', tokens.length, text);
+        
+        return NextResponse.json({
+          tokens,
+          provider: null,
+          model: null,
+          method: 'regex_fallback',
+          message: 'No AI provider configured. Using regex parser.',
+        });
+      }
+      
+      return NextResponse.json(
+        { error: 'No AI provider configured. Please add one in settings.' },
+        { status: 400 }
+      );
+    }
+    
+    // Parse with AI
+    const startTime = Date.now();
+    const result = await parseWithAI(provider, apiKey, selectedModel!, text);
+    const duration = Date.now() - startTime;
+    
+    if (result.error) {
+      // If AI fails, optionally fall back to regex
+      if (useFallback) {
+        const tokens = scanForTokens(text);
+        
+        await logParseActivity(user.id, provider, selectedModel!, tokens.length, text, result.error);
+        
+        return NextResponse.json({
+          tokens,
+          provider,
+          model: selectedModel,
+          method: 'regex_fallback',
+          error: result.error,
+          duration,
+        });
+      }
+      
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      );
+    }
+    
+    // Log successful parse
+    await logParseActivity(user.id, provider, selectedModel!, result.tokens.length, text);
+    
+    // Convert to DetectedToken format
+    const tokens: DetectedToken[] = result.tokens.map((t, index) => ({
+      id: `ai-${Date.now()}-${index}`,
+      name: t.service,
+      value: t.token,
+      confidence: t.confidence,
+      category: t.category,
+      description: t.description || `${t.service} API Key`,
+    }));
+    
     return NextResponse.json({
-      tokens: detectedTokens,
-      count: detectedTokens.length,
+      tokens,
+      provider,
+      model: selectedModel,
+      method: 'ai',
+      duration,
+      rawResponse: process.env.NODE_ENV === 'development' ? result.rawResponse : undefined,
     });
   } catch (error) {
-    console.error('AI Parse error:', error);
-    return NextResponse.json({ error: 'Failed to parse tokens' }, { status: 500 });
+    console.error('AI parse error:', error);
+    return NextResponse.json(
+      { error: 'Failed to parse text' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Log parse activity to database
+ */
+async function logParseActivity(
+  userId: string,
+  provider: string,
+  model: string,
+  tokensFound: number,
+  inputText: string,
+  error?: string
+): Promise<void> {
+  try {
+    // Truncate input for storage
+    const truncatedInput = inputText.slice(0, 500);
+    
+    await prisma.parseHistory.create({
+      data: {
+        userId,
+        provider,
+        model,
+        inputText: truncatedInput,
+        tokensFound,
+      },
+    });
+    
+    // Also log to activity
+    await prisma.activity.create({
+      data: {
+        userId,
+        action: 'PARSE',
+        service: provider,
+        details: error 
+          ? `Parsed with ${provider} (${model}) - ${tokensFound} tokens found (Error: ${error})`
+          : `Parsed with ${provider} (${model}) - ${tokensFound} tokens found`,
+      },
+    });
+  } catch (logError) {
+    console.error('Failed to log parse activity:', logError);
   }
 }
