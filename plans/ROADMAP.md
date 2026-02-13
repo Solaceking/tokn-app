@@ -11,7 +11,7 @@ Build the most developer-friendly, open-source token manager with:
 - **Open Source** - Free forever, donations optional (Paypal/Stripe)
 - **One-Click Deploy** - Deploy to Vercel in minutes
 - **Privacy Focused** - Your tokens, your data, your control
-- **Freemium** - Free tier (15 tokens) + Paid Pro tier ($9/mo)
+- **Freemium** - Free tier (15 tokens) + Paid Pro tier ($7.99/user/month)
 
 ---
 
@@ -23,7 +23,7 @@ Build the most developer-friendly, open-source token manager with:
 - All core features
 - Self-host forever
 
-### Pro Tier ($9/mo)
+### Pro Tier ($7.99/user/month)
 - **Unlimited tokens**
 - **Team collaboration** (invite members)
 - **Priority support**
@@ -60,11 +60,12 @@ Build the most developer-friendly, open-source token manager with:
 - [x] Login stats - show who's logged in on all screens
 - [ ] Passkey/WebAuthn support (requires Supabase Pro - not free)
 - [ ] Team collaboration (invite team members)
+- [ ] GitHub Pages wiki (docs, changelog, legal)
 
 ### Phase 4: Monetization (In Progress 🚧)
 
 - [ ] Free tier (15 tokens, 1 user)
-- [ ] Paid Pro tier ($9/mo via Stripe)
+- [ ] Paid Pro tier ($7.99/user/month via Stripe)
   - Unlimited tokens
   - Team collaboration
   - Priority support
