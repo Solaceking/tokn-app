@@ -28,6 +28,32 @@ async function getDbUser(supabaseUser: any) {
   return dbUser;
 }
 
+// Check token limit for free users
+async function checkTokenLimit(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+  const FREE_TOKEN_LIMIT = 15;
+  
+  const user = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { plan: true },
+  });
+  
+  // Pro users have unlimited tokens
+  if (user?.plan === 'PRO') {
+    return { allowed: true, current: 0, limit: -1 };
+  }
+  
+  // Check token count for free users
+  const tokenCount = await prisma.token.count({
+    where: { userId },
+  });
+  
+  return {
+    allowed: tokenCount < FREE_TOKEN_LIMIT,
+    current: tokenCount,
+    limit: FREE_TOKEN_LIMIT,
+  };
+}
+
 // GET /api/tokens - Get all tokens for current user
 export async function GET(request: Request) {
   try {
@@ -98,6 +124,17 @@ export async function POST(request: Request) {
         { error: 'Service and token are required' },
         { status: 400 }
       );
+    }
+    
+    // Check token limit for free users
+    const limitCheck = await checkTokenLimit(dbUser.id);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({
+        error: 'Token limit reached',
+        message: `Free tier limited to ${limitCheck.limit} tokens. Upgrade to Pro for unlimited tokens.`,
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+      }, { status: 403 });
     }
     
     // Encrypt the token before storing
