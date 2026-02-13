@@ -39,9 +39,9 @@ Build the most developer-friendly, open-source token manager with:
 
 ### Phase 3: User Features (In Progress 🚧)
 
-- [ ] User avatar/profile photo support
+- [x] User avatar/profile photo support
 - [ ] Login stats - show who's logged in on all screens
-- [ ] Passkey/WebAuthn support (via Supabase)
+- [ ] Passkey/WebAuthn support (requires Supabase Pro - not free)
 - [ ] Team collaboration (invite team members)
 
 ### Phase 4: Advanced Features (Planned 📝)
