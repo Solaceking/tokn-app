@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
-import { headers } from 'next/headers';
+import { headers } from 'next/server';
+import type { PlanType } from '@/lib/pricing';
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -34,17 +35,39 @@ export async function POST(request: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         
-        // Get user ID from metadata
+        // Get user ID and plan from metadata
         const userId = session.metadata?.userId;
+        const planId = session.metadata?.planId as PlanType;
+        const subscriptionId = session.subscription as string;
         
-        if (userId) {
-          // Update user to PRO
+        if (userId && planId) {
+          // Update user to new plan
           await prisma.users.update({
             where: { id: userId },
-            data: { plan: 'PRO' },
+            data: { 
+              plan: planId,
+              stripeSubscriptionId: subscriptionId,
+            },
           });
           
-          console.log(`User ${userId} upgraded to PRO`);
+          console.log(`User ${userId} upgraded to ${planId}`);
+        }
+        break;
+      }
+      
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.userId;
+        const planId = subscription.metadata?.planId as PlanType;
+        
+        if (userId && planId) {
+          // Update plan if changed
+          await prisma.users.update({
+            where: { id: userId },
+            data: { plan: planId },
+          });
+          
+          console.log(`User ${userId} subscription updated to ${planId}`);
         }
         break;
       }
@@ -52,15 +75,18 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         
-        // Find user by stripe customer ID and downgrade to FREE
+        // Find user by stripe subscription ID and downgrade to FREE
         const user = await prisma.users.findFirst({
-          where: { email: subscription.metadata?.email },
+          where: { stripeSubscriptionId: subscription.id },
         });
         
         if (user) {
           await prisma.users.update({
             where: { id: user.id },
-            data: { plan: 'FREE' },
+            data: { 
+              plan: 'FREE',
+              stripeSubscriptionId: null,
+            },
           });
           
           console.log(`User ${user.id} downgraded to FREE (subscription cancelled)`);
@@ -72,7 +98,7 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice;
         
         // Handle failed payment - could send email notification
-        console.log('Payment failed for invoice:', invoice.id);
+        console.log('Payment failed for invoice:', invoice.id, 'customer:', invoice.customer);
         break;
       }
       
