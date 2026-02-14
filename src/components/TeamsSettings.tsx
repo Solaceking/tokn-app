@@ -48,10 +48,10 @@ interface TeamsSettingsProps {
   user: {
     id: string;
     email: string;
-    name: string | null;
-    avatar_url: string | null;
-    createdAt: string;
-  };
+    username?: string;
+    full_name?: string;
+    avatar_url?: string;
+  } | null;
 }
 
 export function TeamsSettings({ user }: TeamsSettingsProps) {
@@ -181,9 +181,9 @@ export function TeamsSettings({ user }: TeamsSettingsProps) {
   };
 
   const canManageMembers = (member: TeamMember) => {
-    return selectedTeam?.ownerId === user.id || 
+    return selectedTeam?.ownerId === user?.id || 
            (member.role !== 'OWNER' && 
-            selectedTeam?.members.some(m => m.userId === user.id && m.role === 'ADMIN'));
+            selectedTeam?.members.some(m => m.userId === user?.id && m.role === 'ADMIN'));
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -292,12 +292,12 @@ export function TeamsSettings({ user }: TeamsSettingsProps) {
                   : 'border-[#404040] hover:border-[#FF9F1C]'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-bold">{team.name}</h4>
-                {team.ownerId === user.id && (
-                  <Crown className="w-4 h-4 text-[#FF9F1C]" />
-                )}
-              </div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold">{team.name}</h4>
+                  {team.ownerId === user?.id && (
+                    <Crown className="w-4 h-4 text-[#FF9F1C]" />
+                  )}
+                </div>
               <div className="text-xs text-[#737373] space-y-1">
                 <div className="flex items-center gap-1">
                   <Users className="w-3 h-3" />
@@ -320,7 +320,7 @@ export function TeamsSettings({ user }: TeamsSettingsProps) {
             <div>
               <h3 className="font-bold text-xl flex items-center gap-2">
                 {selectedTeam.name}
-                {selectedTeam.ownerId === user.id && (
+                {selectedTeam.ownerId === user?.id && (
                   <Crown className="w-5 h-5 text-[#FF9F1C]" />
                 )}
               </h3>
@@ -381,8 +381,8 @@ export function TeamsSettings({ user }: TeamsSettingsProps) {
           </div>
 
           {/* Invite Member */}
-          {(selectedTeam.ownerId === user.id || 
-            selectedTeam.members.some(m => m.userId === user.id && m.role === 'ADMIN')) && (
+          {(selectedTeam.ownerId === user?.id || 
+            selectedTeam.members.some(m => m.userId === user?.id && m.role === 'ADMIN')) && (
             <div className="border-2 border-[#404040] p-4">
               <h4 className="font-bold mb-3 flex items-center gap-2">
                 <UserPlus className="w-4 h-4" />

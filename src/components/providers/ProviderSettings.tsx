@@ -10,10 +10,9 @@ import {
 
 interface SavedProvider {
   id: string;
-  provider: AIProviderType;
+  providerType: AIProviderType;
   displayName: string;
   selectedModel: string;
-  isDefault: boolean;
   apiKeyMasked: string;
 }
 
@@ -35,7 +34,6 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
   const [selectedModel, setSelectedModel] = useState('');
   const [models, setModels] = useState<AIModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [isDefault, setIsDefault] = useState(true);
   const [testingKey, setTestingKey] = useState(false);
 
   // Fetch saved providers on mount
@@ -134,7 +132,6 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
           provider: selectedProvider,
           apiKey,
           selectedModel,
-          isDefault,
         }),
       });
       
@@ -185,10 +182,9 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider: provider.provider,
+          provider: provider.providerType,
           apiKey: '', // Won't update key
           selectedModel: provider.selectedModel,
-          isDefault: true,
         }),
       });
       
@@ -207,7 +203,6 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
     setApiKey('');
     setSelectedModel('');
     setModels([]);
-    setIsDefault(true);
     setError(null);
     setSuccess(null);
   };
@@ -245,11 +240,6 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-white">{provider.displayName}</span>
-                    {provider.isDefault && (
-                      <span className="px-2 py-0.5 text-xs bg-[#FF9F1C] text-black font-bold">
-                        DEFAULT
-                      </span>
-                    )}
                   </div>
                   <div className="text-sm text-[#737373]">
                     Model: {provider.selectedModel}
@@ -259,14 +249,12 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {!provider.isDefault && (
-                    <button
-                      onClick={() => handleSetDefault(provider.id)}
-                      className="px-3 py-1 text-sm border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
-                    >
-                      Set Default
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleSetDefault(provider.id)}
+                    className="px-3 py-1 text-sm border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
+                  >
+                    Set Default
+                  </button>
                   <button
                     onClick={() => handleDelete(provider.id)}
                     className="px-3 py-1 text-sm border border-[#404040] text-[#737373] hover:border-red-600 hover:text-red-600 transition-colors"
@@ -365,21 +353,6 @@ export function ProviderSettings({ onSuccess }: ProviderSettingsProps) {
             </div>
           )}
 
-          {/* Default Toggle */}
-          {selectedProvider && (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isDefault"
-                checked={isDefault}
-                onChange={(e) => setIsDefault(e.target.checked)}
-                className="w-4 h-4 accent-[#FF9F1C]"
-              />
-              <label htmlFor="isDefault" className="text-sm text-[#737373]">
-                Set as default provider for AI parsing
-              </label>
-            </div>
-          )}
 
           {/* Error/Success Messages */}
           {error && (

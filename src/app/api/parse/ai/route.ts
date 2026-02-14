@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
     
     const body = await request.json();
-    const { text, provider: requestedProvider, useFallback = true } = body;
+    const { text, providerType: requestedProvider, useFallback = true } = body;
     
     if (!text || text.trim().length === 0) {
       return NextResponse.json(
@@ -36,64 +36,62 @@ export async function POST(request: Request) {
       );
     }
     
-    let provider: AIProviderType | null = null;
+    let providerType: AIProviderType | null = null;
     let apiKey: string | null = null;
-    let selectedModel: string | null = null;
+    let config: string | null = null;
     
     if (requestedProvider) {
       const savedProvider = await prisma.userAIProvider.findUnique({
         where: {
-          userId_provider: {
+          userId_providerType: {
             userId: user.id,
-            provider: requestedProvider as AIProviderType,
+            providerType: requestedProvider as AIProviderType,
           },
         },
       });
       
       if (savedProvider) {
-        provider = savedProvider.provider as AIProviderType;
+        providerType = savedProvider.providerType as AIProviderType;
         apiKey = await decrypt(savedProvider.apiKey);
-        selectedModel = savedProvider.selectedModel;
+        config = savedProvider.config;
       }
     }
     
-    if (!provider) {
+    if (!providerType) {
       const defaultProvider = await prisma.userAIProvider.findFirst({
         where: {
           userId: user.id,
-          isDefault: true,
         },
       });
       
       if (defaultProvider) {
-        provider = defaultProvider.provider as AIProviderType;
+        providerType = defaultProvider.providerType as AIProviderType;
         apiKey = await decrypt(defaultProvider.apiKey);
-        selectedModel = defaultProvider.selectedModel;
+        config = defaultProvider.config;
       }
     }
     
-    if (!provider) {
+    if (!providerType) {
       const anyProvider = await prisma.userAIProvider.findFirst({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
       });
       
       if (anyProvider) {
-        provider = anyProvider.provider as AIProviderType;
+        providerType = anyProvider.providerType as AIProviderType;
         apiKey = await decrypt(anyProvider.apiKey);
-        selectedModel = anyProvider.selectedModel;
+        config = anyProvider.config;
       }
     }
     
-    if (!provider || !apiKey) {
+    if (!providerType || !apiKey) {
       if (useFallback) {
         const tokens = scanForTokens(text);
         
-        await logParseActivity(user.id, 'regex', 'regex-fallback', tokens.length, text);
         
         const response = NextResponse.json({
           tokens,
-          provider: null,
+          providerType: null,
           model: null,
           method: 'regex_fallback',
           message: 'No AI provider configured. Using regex parser.',
@@ -110,19 +108,18 @@ export async function POST(request: Request) {
     }
     
     const startTime = Date.now();
-    const result = await parseWithAI(provider, apiKey, selectedModel!, text);
+    const result = await parseWithAI(providerType, apiKey, config || "default", text);
     const duration = Date.now() - startTime;
     
     if (result.error) {
       if (useFallback) {
         const tokens = scanForTokens(text);
         
-        await logParseActivity(user.id, provider, selectedModel!, tokens.length, text, result.error);
         
         const response = NextResponse.json({
           tokens,
-          provider,
-          model: selectedModel,
+          providerType,
+          model: config,
           method: 'regex_fallback',
           error: result.error,
           duration,
@@ -138,7 +135,6 @@ export async function POST(request: Request) {
       );
     }
     
-    await logParseActivity(user.id, provider, selectedModel!, result.tokens.length, text);
     
     const tokens: DetectedToken[] = result.tokens.map((t, index) => ({
       id: `ai-${Date.now()}-${index}`,
@@ -151,8 +147,8 @@ export async function POST(request: Request) {
     
     const response = NextResponse.json({
       tokens,
-      provider,
-      model: selectedModel,
+      providerType,
+      model: config,
       method: 'ai',
       duration,
       rawResponse: process.env.NODE_ENV === 'development' ? result.rawResponse : undefined,
@@ -169,38 +165,3 @@ export async function POST(request: Request) {
   }
 }
 
-async function logParseActivity(
-  userId: string,
-  provider: string,
-  model: string,
-  tokensFound: number,
-  inputText: string,
-  error?: string
-): Promise<void> {
-  try {
-    const truncatedInput = inputText.slice(0, 500);
-    
-    await prisma.parseHistory.create({
-      data: {
-        userId,
-        provider,
-        model,
-        inputText: truncatedInput,
-        tokensFound,
-      },
-    });
-    
-    await prisma.activity.create({
-      data: {
-        userId,
-        action: 'PARSE',
-        service: provider,
-        details: error 
-          ? `Parsed with ${provider} (${model}) - ${tokensFound} tokens found (Error: ${error})`
-          : `Parsed with ${provider} (${model}) - ${tokensFound} tokens found`,
-      },
-    });
-  } catch (logError) {
-    console.error('Failed to log parse activity:', logError);
-  }
-}

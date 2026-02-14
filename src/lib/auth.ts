@@ -12,7 +12,6 @@ export interface AuthUser {
   email: string;
   name: string | null;
   avatar_url: string | null;
-  plan: string;
 }
 
 export async function createSupabaseServerClient() {
@@ -63,7 +62,6 @@ async function getSupabaseAuthUser(): Promise<AuthUser | null> {
         email: true,
         full_name: true,
         avatar_url: true,
-        plan: true,
         created_at: true,
       },
     });
@@ -80,7 +78,6 @@ async function getSupabaseAuthUser(): Promise<AuthUser | null> {
           email: true,
           full_name: true,
           avatar_url: true,
-          plan: true,
           created_at: true,
         },
       });
@@ -91,7 +88,6 @@ async function getSupabaseAuthUser(): Promise<AuthUser | null> {
       email: dbUser.email,
       name: dbUser.full_name,
       avatar_url: dbUser.avatar_url,
-      plan: dbUser.plan,
     };
   } catch (error) {
     console.error('Supabase auth error:', error);
@@ -114,7 +110,6 @@ async function getLocalAuthUser(): Promise<AuthUser | null> {
         email: true,
         full_name: true,
         avatar_url: true,
-        plan: true,
       },
     });
     
@@ -127,7 +122,6 @@ async function getLocalAuthUser(): Promise<AuthUser | null> {
       email: dbUser.email,
       name: dbUser.full_name,
       avatar_url: dbUser.avatar_url,
-      plan: dbUser.plan,
     };
   } catch (error) {
     console.error('Local auth error:', error);
@@ -143,7 +137,6 @@ export async function verifyPassword(email: string, password: string): Promise<A
       email: true,
       full_name: true,
       avatar_url: true,
-      plan: true,
       password: true,
     },
   });
@@ -163,7 +156,6 @@ export async function verifyPassword(email: string, password: string): Promise<A
     email: user.email,
     name: user.full_name,
     avatar_url: user.avatar_url,
-    plan: user.plan,
   };
 }
 
@@ -182,7 +174,6 @@ export async function createUser(email: string, password: string, name?: string)
       email: true,
       full_name: true,
       avatar_url: true,
-      plan: true,
     },
   });
   
@@ -191,7 +182,6 @@ export async function createUser(email: string, password: string, name?: string)
     email: user.email,
     name: user.full_name,
     avatar_url: user.avatar_url,
-    plan: user.plan,
   };
 }
 

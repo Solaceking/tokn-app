@@ -17,7 +17,6 @@ export async function GET() {
       email: user.email,
       name: user.name,
       avatar_url: user.avatar_url,
-      plan: user.plan,
       createdAt: null,
     });
   } catch (error) {

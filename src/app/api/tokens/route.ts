@@ -9,29 +9,10 @@ import { encryptToken, decryptToken } from '@/lib/server-encryption';
 import { prisma } from '@/lib/db';
 import { TokenStatus } from '@prisma/client';
 import { withRateLimit, createRateLimiter, getRateLimitHeaders } from '@/lib/rate-limit';
-import { checkApiAccessForUser } from '@/lib/api-middleware';
 
 async function checkTokenLimit(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
-  const FREE_TOKEN_LIMIT = 15;
-  
-  const user = await prisma.users.findUnique({
-    where: { id: userId },
-    select: { plan: true },
-  });
-  
-  if (user?.plan === 'PRO') {
-    return { allowed: true, current: 0, limit: -1 };
-  }
-  
-  const tokenCount = await prisma.token.count({
-    where: { userId },
-  });
-  
-  return {
-    allowed: tokenCount < FREE_TOKEN_LIMIT,
-    current: tokenCount,
-    limit: FREE_TOKEN_LIMIT,
-  };
+  // No subscription limits - everyone gets unlimited tokens
+  return { allowed: true, current: 0, limit: -1 };
 }
 
 export async function GET(request: Request) {
@@ -42,10 +23,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const { searchParams } = new URL(request.url);
     const exportType = searchParams.get('export');
@@ -93,10 +70,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const body = await request.json();
     const { service, token, description, category, status } = body;
@@ -154,10 +127,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const body = await request.json();
     const { id, service, token, description, category, status } = body;
@@ -225,10 +194,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

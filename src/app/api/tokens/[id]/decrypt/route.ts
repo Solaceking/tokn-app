@@ -8,7 +8,6 @@ import { getAuthenticatedUser } from '@/lib/auth';
 import { decryptToken } from '@/lib/server-encryption';
 import { prisma } from '@/lib/db';
 import { withRateLimit, createRateLimiter } from '@/lib/rate-limit';
-import { checkApiAccessForUser } from '@/lib/api-middleware';
 
 export async function POST(
   request: Request,
@@ -29,10 +28,6 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const token = await prisma.token.findFirst({
       where: {

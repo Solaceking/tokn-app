@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { encrypt } from '@/lib/server-encryption';
-import { checkApiAccessForUser } from '@/lib/api-middleware';
 
 export async function GET(
   request: Request,
@@ -16,10 +15,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const team = await prisma.team.findFirst({
       where: {
@@ -74,10 +69,6 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const team = await prisma.team.findFirst({
       where: {
@@ -110,7 +101,8 @@ export async function POST(
         service: service.trim(),
         token: encryptedToken,
         description: description?.trim() || null,
-        category: category?.trim() || null
+        category: category?.trim() || null,
+        createdBy: user.id
       }
     });
     

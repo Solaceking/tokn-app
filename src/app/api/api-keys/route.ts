@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { checkApiAccessForUser } from '@/lib/api-middleware';
 
 function generateToken(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -19,10 +18,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     return NextResponse.json({ keys: [] });
   } catch (error) {
@@ -39,10 +34,6 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const fullKey = `tokns_${generateToken(32)}`;
     const prefix = fullKey.substring(0, 8);
@@ -71,10 +62,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

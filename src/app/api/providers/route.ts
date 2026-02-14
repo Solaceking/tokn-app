@@ -30,10 +30,9 @@ export async function GET() {
         const decryptedKey = await decrypt(p.apiKey);
         return {
           id: p.id,
-          provider: p.provider,
-          displayName: AI_PROVIDER_CONFIGS[p.provider as AIProviderType].displayName,
-          selectedModel: p.selectedModel,
-          isDefault: p.isDefault,
+          providerType: p.providerType,
+          displayName: AI_PROVIDER_CONFIGS[p.providerType as AIProviderType].displayName,
+          selectedModel: p.config,
           apiKeyMasked: maskKey(decryptedKey),
         };
       })
@@ -58,7 +57,7 @@ export async function POST(request: Request) {
     }
     
     const body = await request.json();
-    const { provider, apiKey, selectedModel, isDefault = false } = body;
+    const { provider, apiKey, selectedModel, testOnly } = body;
     
     if (!provider || !AI_PROVIDER_CONFIGS[provider as AIProviderType]) {
       return NextResponse.json(
@@ -86,18 +85,11 @@ export async function POST(request: Request) {
     
     const model = selectedModel || AI_PROVIDER_CONFIGS[provider as AIProviderType].defaultModel;
     
-    if (isDefault) {
-      await prisma.userAIProvider.updateMany({
-        where: { userId: user.id },
-        data: { isDefault: false },
-      });
-    }
-    
     const existingProvider = await prisma.userAIProvider.findUnique({
       where: {
-        userId_provider: {
+        userId_providerType: {
           userId: user.id,
-          provider: provider as AIProviderType,
+          providerType: provider as AIProviderType,
         },
       },
     });
@@ -108,28 +100,25 @@ export async function POST(request: Request) {
         where: { id: existingProvider.id },
         data: {
           apiKey: encryptedKey,
-          selectedModel: model,
-          isDefault,
+          config: model,
         },
       });
     } else {
       savedProvider = await prisma.userAIProvider.create({
         data: {
           userId: user.id,
-          provider: provider as AIProviderType,
+          providerType: provider as AIProviderType,
           apiKey: encryptedKey,
-          selectedModel: model,
-          isDefault,
+          config: model,
         },
       });
     }
     
     return NextResponse.json({
       id: savedProvider.id,
-      provider: savedProvider.provider,
+      providerType: savedProvider.providerType,
       displayName: AI_PROVIDER_CONFIGS[provider as AIProviderType].displayName,
-      selectedModel: savedProvider.selectedModel,
-      isDefault: savedProvider.isDefault,
+      selectedModel: savedProvider.config,
       apiKeyMasked: maskKey(apiKey),
     });
   } catch (error) {

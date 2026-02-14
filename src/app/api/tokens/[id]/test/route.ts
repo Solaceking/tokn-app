@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { decrypt } from '@/lib/server-encryption';
-import { checkApiAccessForUser } from '@/lib/api-middleware';
 
 const serviceConfigs: Record<string, {
   testUrl: string;
@@ -101,10 +100,6 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const apiAccess = await checkApiAccessForUser(user.id);
-    if (!apiAccess.allowed && apiAccess.error) {
-      return apiAccess.error;
-    }
     
     const { id } = await params;
     

@@ -40,9 +40,9 @@ export async function POST(request: Request) {
     } else {
       const savedProvider = await prisma.userAIProvider.findUnique({
         where: {
-          userId_provider: {
+          userId_providerType: {
             userId: user.id,
-            provider: provider as AIProviderType,
+            providerType: provider as AIProviderType,
           },
         },
       });
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     console.error('Fetch models error:', error);
     
     // Return static models on error
-    const { provider } = await request.json().catch(() => ({ provider: null }));
+    const { provider } = await request.json().catch(() => ({ providerType: null }));
     if (provider && AI_PROVIDER_CONFIGS[provider as AIProviderType]) {
       return NextResponse.json({
         provider,

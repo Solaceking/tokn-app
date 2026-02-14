@@ -142,7 +142,6 @@ CREATE TABLE IF NOT EXISTS "UserAIProvider" (
     "provider" TEXT NOT NULL,
     "apiKey" TEXT NOT NULL,
     "baseUrl" TEXT,
-    "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "selectedModel" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

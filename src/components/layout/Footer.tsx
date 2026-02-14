@@ -1,6 +1,6 @@
 'use client';
 
-import { Key, Github, Shield, BookOpen } from 'lucide-react';
+import { Key, Github, Shield, BookOpen, Heart } from 'lucide-react';
 import Link from 'next/link';
 
 const FOOTER_LINKS = {
@@ -52,6 +52,14 @@ export function Footer() {
               >
                 <BookOpen className="w-4 h-4" />
               </Link>
+              <a
+                href="https://github.com/sponsors/Solaceking"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 flex items-center justify-center border border-border text-muted-foreground hover:border-pink-500 hover:text-pink-500 transition-colors"
+              >
+                <Heart className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
@@ -110,9 +118,19 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} TOKNS. Open source under MIT License.
           </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Shield className="w-3 h-3" />
-            <span>AES-256-GCM Encrypted</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Shield className="w-3 h-3" />
+              <span>AES-256-GCM Encrypted</span>
+            </div>
+            <a
+              href="https://github.com/sponsors/Solaceking"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-pink-500 hover:text-pink-400"
+            >
+              <Heart className="w-3 h-3" /> Support
+            </a>
           </div>
         </div>
       </div>

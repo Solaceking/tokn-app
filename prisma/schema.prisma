@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Supabase Auth tables (introspected)
 model users {
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email           String           @unique
@@ -15,9 +14,6 @@ model users {
   full_name       String?
   avatar_url      String?
   password        String?
-  plan            Plan             @default(FREE)
-  stripeCustomerId String?
-  stripeSubscriptionId String?
   created_at      DateTime?        @default(now()) @db.Timestamptz(6)
   comments        comments[]
   posts           posts[]
@@ -26,12 +22,6 @@ model users {
   activities      Activity[]
   parseHistories  ParseHistory[]
   teamMemberships TeamMember[]
-}
-
-enum Plan {
-  FREE
-  PRO
-  ULTRA
 }
 
 model comments {
@@ -56,12 +46,11 @@ model posts {
   users        users?     @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-// TOKNS - API Token model
 model Token {
   id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String      @db.Uuid
   service     String
-  token       String // Encrypted (IV embedded in ciphertext)
+  token       String
   description String?
   category    String?
   status      TokenStatus @default(ACTIVE)
@@ -80,13 +69,12 @@ enum TokenStatus {
   EXPIRING
 }
 
-// TOKNS - User's AI Provider configurations
 model UserAIProvider {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId       String   @db.Uuid
   providerType String
-  apiKey       String   // Encrypted
-  config       String?  // JSON config
+  apiKey       String
+  config       String?
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
@@ -96,7 +84,6 @@ model UserAIProvider {
   @@index([userId])
 }
 
-// TOKNS - Activity log for token operations
 model Activity {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @db.Uuid
@@ -111,12 +98,11 @@ model Activity {
   @@index([createdAt])
 }
 
-// TOKNS - Parse history for AI parser
 model ParseHistory {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @db.Uuid
   input     String?
-  result    String   // JSON result
+  result    String
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   user users @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -124,7 +110,6 @@ model ParseHistory {
   @@index([userId])
 }
 
-// TOKNS - Team model (for Pro tier team collaboration)
 model Team {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
@@ -133,13 +118,12 @@ model Team {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
-  members    TeamMember[]
-  tokens     TeamToken[]
+  members TeamMember[]
+  tokens  TeamToken[]
 
   @@index([ownerId])
 }
 
-// TOKNS - Team members
 model TeamMember {
   id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   teamId   String   @db.Uuid
@@ -160,12 +144,11 @@ enum TeamRole {
   MEMBER
 }
 
-// TOKNS - Team-shared tokens
 model TeamToken {
   id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   teamId      String      @db.Uuid
   service     String
-  token       String      // Encrypted
+  token       String
   description String?
   category    String?
   status      TokenStatus @default(ACTIVE)
