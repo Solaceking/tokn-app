@@ -9,6 +9,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(pathname) || 
                         pathname.startsWith('/auth/') || 
                         pathname.startsWith('/docs') ||
+                        pathname.startsWith('/legal') ||
                         pathname === '/api/health';
 
   // Skip Supabase if credentials are not configured
