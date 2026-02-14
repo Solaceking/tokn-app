@@ -27,18 +27,46 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        
+      - name: Debug - List files
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Docs directory contents:"
+          ls -la docs/
+          echo "Total files in docs:"
+          find docs/ -type f | wc -l
         
       - name: Create output directory
         run: mkdir -p ./_site
         
       - name: Copy documentation files
         run: |
+          # Copy all documentation files
           cp -r docs/* ./_site/
+          
+          # Create .nojekyll file to disable Jekyll processing
+          touch ./_site/.nojekyll
+          
+          # Ensure CNAME file is preserved
+          if [ -f docs/CNAME ]; then
+            cp docs/CNAME ./_site/CNAME
+          fi
+          
+          # List files for debugging
+          echo "Files in _site directory:"
+          ls -la ./_site/
+          echo "File count in _site:"
+          find ./_site -type f | wc -l
+          
           # Ensure proper permissions
-          chmod -R 644 ./_site/*
+          find ./_site -type f -exec chmod 644 {} \;
+          find ./_site -type d -exec chmod 755 {} \;
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
