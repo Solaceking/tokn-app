@@ -23,6 +23,10 @@ import {
   Upload,
   Crown,
   Zap,
+  Users,
+  Plus,
+  UserPlus,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
 
@@ -274,6 +278,7 @@ function SettingsContent() {
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'plan', label: 'Plan', icon: Crown },
+    { id: 'teams', label: 'Teams', icon: Users },
     { id: 'ai-providers', label: 'AI Providers', icon: Key },
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'api', label: 'API Keys', icon: KeyRound },
@@ -504,6 +509,40 @@ function SettingsContent() {
                       Upgrade Now
                     </button>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Teams Tab */}
+            {activeTab === 'teams' && (
+              <div className="border-2 border-[#404040] bg-[#171717] p-6">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-[#FF9F1C]" />
+                  Team Collaboration
+                </h2>
+                <p className="text-[#737373] text-sm mb-6">
+                  Create and manage teams to share tokens with your colleagues. Available on PRO plan.
+                </p>
+                
+                {!isPro ? (
+                  <div className="border-2 border-[#FF9F1C] bg-[#FF9F1C]/10 p-6 rounded-lg">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Crown className="w-6 h-6 text-[#FF9F1C]" />
+                      <span className="font-bold text-[#FF9F1C]">Upgrade to PRO</span>
+                    </div>
+                    <p className="text-sm text-[#737373] mb-4">
+                      Team collaboration is available on the PRO plan. Create teams, invite members, and share tokens securely.
+                    </p>
+                    <button
+                      onClick={handleUpgrade}
+                      className="w-full py-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Upgrade to PRO
+                    </button>
+                  </div>
+                ) : (
+                  <TeamsSettings user={user} />
                 )}
               </div>
             )}

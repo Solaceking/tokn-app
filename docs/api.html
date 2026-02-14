@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Reference - TOKN Documentation</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/Solaceking/tokn-app/main/public/logo.svg">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="nav-logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="16" height="16" rx="2" stroke="#FF9F1C" stroke-width="2"/>
+                    <path d="M12 8L12 16" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 12L16 12" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span>TOKN</span>
+            </a>
+            <div class="nav-links">
+                <a href="getting-started.html">Getting Started</a>
+                <a href="guides.html">Guides</a>
+                <a href="api.html">API</a>
+                <a href="security.html">Security</a>
+                <a href="contributing.html">Contributing</a>
+                <a href="https://github.com/Solaceking/tokn-app" class="github-link">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+            <button class="theme-toggle" id="themeToggle">
+                <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="content">
+        <div class="container content-container">
+            <header class="content-header">
+                <h1 class="content-title">TOKN API Reference</h1>
+                <p class="content-subtitle">REST API endpoints for integrating TOKN with your applications.</p>
+            </header>
+
+            <div class="alert alert-info">
+                <strong>Authentication:</strong> All API requests require a valid API key. Generate keys in Settings → API Keys.
+            </div>
+
+            <section>
+                <h2 id="authentication">Authentication</h2>
+                <p>Include your API key in the Authorization header:</p>
+                <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+                
+                <p>Or as a query parameter:</p>
+                <pre><code>GET /api/tokens?apiKey=YOUR_API_KEY</code></pre>
+
+                <h3 id="rate-limiting">Rate Limiting</h3>
+                <ul>
+                    <li><strong>Free tier:</strong> 100 requests/hour</li>
+                    <li><strong>Pro tier:</strong> 1,000 requests/hour</li>
+                    <li>Exceeding limits returns HTTP 429 (Too Many Requests)</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 id="endpoints">Endpoints</h2>
+
+                <h3 id="tokens">Tokens</h3>
+
+                <h4 id="list-tokens">List Tokens</h4>
+                <pre><code>GET /api/tokens</code></pre>
+                
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "tokens": [
+    {
+      "id": "token_123",
+      "service": "OpenAI",
+      "description": "Production API key",
+      "category": "AI/ML",
+      "status": "ACTIVE",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "updatedAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 50
+}</code></pre>
+
+                <h4 id="get-token">Get Token</h4>
+                <pre><code>GET /api/tokens/{id}</code></pre>
+                
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "id": "token_123",
+  "service": "OpenAI",
+  "token": "encrypted_token_data",
+  "description": "Production API key",
+  "category": "AI/ML",
+  "status": "ACTIVE",
+  "createdAt": "2024-01-01T00:00:00Z",
+  "updatedAt": "2024-01-01T00:00:00Z"
+}</code></pre>
+
+                <h4 id="create-token">Create Token</h4>
+                <pre><code>POST /api/tokens</code></pre>
+                
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "service": "OpenAI",
+  "token": "sk-abc123",
+  "description": "Production API key",
+  "category": "AI/ML"
+}</code></pre>
+
+                <h4 id="update-token">Update Token</h4>
+                <pre><code>PUT /api/tokens/{id}</code></pre>
+                
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "description": "Updated description",
+  "category": "Development"
+}</code></pre>
+
+                <h4 id="delete-token">Delete Token</h4>
+                <pre><code>DELETE /api/tokens/{id}</code></pre>
+            </section>
+
+            <section>
+                <h3 id="token-operations">Token Operations</h3>
+
+                <h4 id="test-token">Test Token</h4>
+                <pre><code>POST /api/tokens/{id}/test</code></pre>
+                
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "success": true,
+  "message": "Token is valid",
+  "statusCode": 200,
+  "responseTime": 150
+}</code></pre>
+
+                <h4 id="decrypt-token">Decrypt Token</h4>
+                <pre><code>POST /api/tokens/{id}/decrypt</code></pre>
+                
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "token": "sk-abc123",
+  "validFor": 300  // Seconds until token re-encryption
+}</code></pre>
+
+                <div class="alert alert-warning">
+                    <strong>Security Note:</strong> Decrypted tokens are only available for 5 minutes before being re-encrypted.
+                </div>
+            </section>
+
+            <section>
+                <h3 id="parser">Parser API</h3>
+
+                <h4 id="parse-text">Parse Text for Tokens</h4>
+                <pre><code>POST /api/parse</code></pre>
+                
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "text": "OPENAI_API_KEY=sk-abc123\nGITHUB_TOKEN=ghp_xyz789",
+  "autoSave": false
+}</code></pre>
+
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "tokens": [
+    {
+      "service": "OpenAI",
+      "token": "sk-abc123",
+      "confidence": 0.95
+    },
+    {
+      "service": "GitHub",
+      "token": "ghp_xyz789",
+      "confidence": 0.92
+    }
+  ]
+}</code></pre>
+
+                <h4 id="ai-parser">AI-Powered Parser</h4>
+                <pre><code>POST /api/parse/ai</code></pre>
+                
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "text": "My OpenAI key is sk-abc123 and GitHub token is ghp_xyz789",
+  "model": "gpt-4"
+}</code></pre>
+            </section>
+
+            <section>
+                <h3 id="activities">Activities</h3>
+
+                <h4 id="list-activities">List Activities</h4>
+                <pre><code>GET /api/activities</code></pre>
+                
+                <p><strong>Query Parameters:</strong></p>
+                <ul>
+                    <li><code>action</code>: Filter by action type</li>
+                    <li><code>service</code>: Filter by service</li>
+                    <li><code>from</code>: Start date (ISO format)</li>
+                    <li><code>to</code>: End date (ISO format)</li>
+                    <li><code>limit</code>: Results per page (default: 50)</li>
+                    <li><code>page</code>: Page number (default: 1)</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3 id="user">User Management</h3>
+
+                <h4 id="get-user">Get Current User</h4>
+                <pre><code>GET /api/user</code></pre>
+                
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "id": "user_123",
+  "email": "user@example.com",
+  "username": "developer",
+  "fullName": "John Developer",
+  "tier": "pro",
+  "tokenCount": 42,
+  "maxTokens": 1000,
+  "createdAt": "2024-01-01T00:00:00Z"
+}</code></pre>
+
+                <h4 id="api-keys">API Keys</h4>
+                <pre><code>GET /api/api-keys</code></pre>
+                <pre><code>POST /api/api-keys</code></pre>
+                <pre><code>DELETE /api/api-keys/{id}</code></pre>
+            </section>
+
+            <section>
+                <h2 id="error-handling">Error Handling</h2>
+                
+                <h3 id="error-codes">Error Codes</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>400</strong></td>
+                            <td>Bad Request - Invalid parameters</td>
+                        </tr>
+                        <tr>
+                            <td><strong>401</strong></td>
+                            <td>Unauthorized - Invalid or missing API key</td>
+                        </tr>
+                        <tr>
+                            <td><strong>403</strong></td>
+                            <td>Forbidden - Insufficient permissions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>404</strong></td>
+                            <td>Not Found - Resource doesn't exist</td>
+                        </tr>
+                        <tr>
+                            <td><strong>429</strong></td>
+                            <td>Too Many Requests - Rate limit exceeded</td>
+                        </tr>
+                        <tr>
+                            <td><strong>500</strong></td>
+                            <td>Internal Server Error</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="error-response">Error Response Format</h3>
+                <pre><code>{
+  "error": "Invalid API key",
+  "code": "INVALID_API_KEY",
+  "details": "The provided API key is invalid or expired"
+}</code></pre>
+            </section>
+
+            <section>
+                <h2 id="client-libraries">Client Libraries</h2>
+                
+                <h3 id="javascript">JavaScript/Node.js</h3>
+                <pre><code>npm install tokn-client</code></pre>
+                
+                <pre><code>import { ToknClient } from 'tokn-client';
+
+const client = new ToknClient({
+  apiKey: 'YOUR_API_KEY',
+  baseUrl: 'https://your-tokn-instance.com'
+});
+
+// List tokens
+const tokens = await client.tokens.list();
+
+// Create token
+const newToken = await client.tokens.create({
+  service: 'OpenAI',
+  token: 'sk-abc123',
+  description: 'Production key'
+});</code></pre>
+
+                <h3 id="python">Python</h3>
+                <pre><code>pip install tokn-python</code></pre>
+                
+                <pre><code>from tokn import ToknClient
+
+client = ToknClient(api_key="YOUR_API_KEY")
+
+# List tokens
+tokens = client.tokens.list()
+
+# Test a token
+result = client.tokens.test("token_id")</code></pre>
+
+                <h3 id="curl">cURL Examples</h3>
+                <pre><code># List tokens
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://your-tokn-instance.com/api/tokens
+
+# Create token
+curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"service":"OpenAI","token":"sk-abc123"}' \
+  https://your-tokn-instance.com/api/tokens</code></pre>
+            </section>
+
+            <div class="cta" style="margin-top: var(--space-12);">
+                <div class="container cta-container">
+                    <div class="cta-content">
+                        <h2 class="cta-title">Need API Help?</h2>
+                        <p class="cta-description">
+                            Join our developer community or open an issue for support.
+                        </p>
+                        <div class="cta-actions">
+                            <a href="https://github.com/Solaceking/tokn-app/issues" class="btn btn-primary">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                                API Issues
+                            </a>
+                            <a href="https://github.com/Solaceking/tokn-app/discussions" class="btn btn-secondary">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                </svg>
+                                Developer Discussions
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-brand">
+                <a href="index.html" class="footer-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="4" y="4" width="16" height="16" rx="2" stroke="#FF9F1C" stroke-width="2"/>
+                        <path d="M12 8L12 16" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M8 12L16 12" stroke="#FF9F1C" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span>TOKN</span>
+                </a>
+                <p class="footer-tagline">Secure token management for developers</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4 class="footer-column-title">Documentation</h4>
+                    <a href="getting-started.html" class="footer-link">Getting Started</a>
+                    <a href="guides.html" class="footer-link">User Guides</a>
+                    <a href="api.html" class="footer-link">API Reference</a>
+                    <a href="security.html" class="footer-link">Security</a>
+                </div>
+                <div class="footer-column">
+                    <h4 class="footer-column-title">Community</h4>
+                    <a href="contributing.html" class="footer-link">Contributing</a>
+                    <a href="changelog.html" class="footer-link">Changelog</a>
+                    <a href="https://github.com/Solaceking/tokn-app/issues" class="footer-link">Issue Tracker</a>
+                    <a href="https://github.com/Solaceking/tokn-app/discussions" class="footer-link">Discussions</a>
+                </div>
+                <div class="footer-column">
+                    <h4 class="footer-column-title">Legal</h4>
+                    <a href="license.html" class="footer-link">License (MIT)</a>
+                    <a href="privacy.html" class="footer-link">Privacy Policy</a>
+                    <a href="terms.html" class="footer-link">Terms of Service</a>
+                    <a href="security.html#reporting" class="footer-link">Security Disclosure</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p class="footer-copyright">
+                    © 2024 TOKN. Open source under MIT License. Built with ❤️ for developers.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="scripts.js"></script>
+</body>
+</html>

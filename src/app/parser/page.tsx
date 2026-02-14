@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Key,
@@ -23,7 +23,6 @@ import { useAppTheme } from '@/hooks/use-theme';
 import { maskToken } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
 import { createBrowserClient } from '@supabase/ssr';
-import { useEffect, useState } from 'react';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

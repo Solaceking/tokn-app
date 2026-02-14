@@ -24,12 +24,15 @@ import {
   HelpCircle,
   Github,
   Twitter,
+  Users,
+  Crown,
 } from 'lucide-react';
 import { maskToken, copyToClipboard, formatRelativeTime } from '@/lib/encryption';
 import { useAppTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import { AddTokenModal } from '@/components/tokens/AddTokenModal';
 import { TokenDetailModal } from '@/components/tokens/TokenDetailModal';
+import { TokenHealthChecker } from '@/components/TokenHealthChecker';
 import { WelcomeTutorial } from '@/components/WelcomeTutorial';
 
 // Types
@@ -42,6 +45,17 @@ interface Token {
   description?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: string;
+  _count: {
+    members: number;
+    tokens: number;
+  };
 }
 
 interface Activity {
@@ -243,8 +257,10 @@ export default function DashboardPage() {
   // Data from API
   const [tokens, setTokens] = useState<Token[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
+  const [userPlan, setUserPlan] = useState<'FREE' | 'PRO'>('FREE');
 
   // Fetch tokens from API
   const fetchTokens = async () => {
@@ -279,16 +295,30 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setUserName(data.name || data.email?.split('@')[0] || 'User');
+        setUserPlan(data.plan || 'FREE');
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
     }
   };
 
+  // Fetch teams
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch('/api/teams');
+      if (res.ok) {
+        const data = await res.json();
+        setTeams(data.teams || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch teams:', error);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([fetchTokens(), fetchActivities(), fetchUser()]);
+      await Promise.all([fetchTokens(), fetchActivities(), fetchUser(), fetchTeams()]);
       setLoading(false);
     };
     loadData();
@@ -298,6 +328,7 @@ export default function DashboardPage() {
   const totalTokens = tokens.length;
   const activeTokens = tokens.filter(t => t.status === 'ACTIVE').length;
   const expiringTokens = tokens.filter(t => t.status === 'EXPIRING').length;
+  const totalTeams = teams.length;
 
   // Filter tokens
   const filteredTokens = tokens.filter(token =>
@@ -412,6 +443,15 @@ export default function DashboardPage() {
             <Shield className="w-5 h-5 shrink-0" />
             {sidebarOpen && <span className="uppercase text-sm font-bold">Dashboard</span>}
           </a>
+          {userPlan === 'PRO' && (
+            <a
+              href="#teams"
+              className="flex items-center gap-3 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors mb-1"
+            >
+              <Users className="w-5 h-5 shrink-0" />
+              {sidebarOpen && <span className="uppercase text-sm font-bold">Teams</span>}
+            </a>
+          )}
           <a
             href="/parser"
             className="flex items-center gap-3 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors mb-1"
@@ -553,6 +593,87 @@ export default function DashboardPage() {
                 title="Last Activity"
                 value={activities[0] ? formatRelativeTime(activities[0].createdAt) : 'Never'}
                 icon={Clock}
+              />
+            </div>
+
+            {/* Team Stats (PRO only) */}
+            {userPlan === 'PRO' && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Users className="w-5 h-5 text-[#FF9F1C]" />
+                    Your Teams
+                  </h2>
+                  <span className="text-sm text-[#737373]">{totalTeams} teams</span>
+                </div>
+                {teams.length === 0 ? (
+                  <div className="border-2 border-[#404040] bg-[#171717] p-6 text-center">
+                    <Users className="w-12 h-12 text-[#404040] mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-white mb-2">No Teams Yet</h3>
+                    <p className="text-[#737373] mb-4">
+                      Create your first team to start collaborating with colleagues.
+                    </p>
+                    <a
+                      href="/settings?tab=teams"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#FF9F1C] text-black font-bold border-2 border-[#FF9F1C] hover:bg-transparent hover:text-[#FF9F1C] transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="uppercase">Create Team</span>
+                    </a>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {teams.map((team) => (
+                      <div
+                        key={team.id}
+                        className="border-2 border-[#404040] bg-[#171717] p-4 hover:border-[#FF9F1C] transition-colors cursor-pointer"
+                        onClick={() => window.location.href = `/settings?tab=teams`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-bold text-white">{team.name}</h3>
+                          {team.ownerId === userName && (
+                            <Crown className="w-4 h-4 text-[#FF9F1C]" />
+                          )}
+                        </div>
+                        <div className="text-xs text-[#737373] space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {team._count.members} members
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Key className="w-3 h-3" />
+                            {team._count.tokens} tokens
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Token Health Checker */}
+            <div className="mb-8">
+              <TokenHealthChecker 
+                tokens={tokens}
+                onHealthCheckComplete={(results) => {
+                  // Update token statuses based on health check results
+                  setTokens(prevTokens => 
+                    prevTokens.map(token => {
+                      const healthResult = results.find(r => r.id === token.id);
+                      if (healthResult) {
+                        let newStatus = token.status;
+                        if (healthResult.status === 'invalid') {
+                          newStatus = 'EXPIRED';
+                        } else if (healthResult.status === 'valid' && token.status === 'EXPIRED') {
+                          newStatus = 'ACTIVE';
+                        }
+                        return { ...token, status: newStatus };
+                      }
+                      return token;
+                    })
+                  );
+                }}
               />
             </div>
 

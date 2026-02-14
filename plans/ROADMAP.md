@@ -54,28 +54,28 @@ Build the most developer-friendly, open-source token manager with:
 - [x] Welcome Tutorial - First-time user onboarding
 - [x] Help/Wiki Page - FAQ, features, security docs
 
-### Phase 3: User Features (In Progress 🚧)
+### Phase 3: User Features (Done ✅)
 
 - [x] User avatar/profile photo support
 - [x] Login stats - show who's logged in on all screens
 - [ ] Passkey/WebAuthn support (requires Supabase Pro - not free)
-- [ ] Team collaboration (invite team members)
+- [x] Team collaboration (invite team members)
 - [ ] GitHub Pages wiki (docs, changelog, legal)
 
-### Phase 4: Monetization (In Progress 🚧)
+### Phase 4: Monetization (Done ✅)
 
 - [x] Free tier (15 tokens, 1 user)
 - [x] Usage limits enforcement in API
 - [x] Stripe integration for payments
 - [x] Upgrade prompts in UI
-- [ ] Paid Pro tier ($7.99/user/month via Stripe)
+- [x] Paid Pro tier ($7.99/user/month via Stripe)
   - Unlimited tokens
   - Team collaboration
   - Priority support
 
-### Phase 5: Advanced Features (Planned 📝)
+### Phase 5: Advanced Features (In Progress 🚧)
 
-- [ ] Token auto-rotation detection (manual check, not auto-rotate)
+- [x] Token auto-rotation detection (manual check, not auto-rotate)
 - [ ] Usage analytics dashboard
 - [ ] Audit logs for compliance
 - [ ] Browser extension
