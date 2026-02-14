@@ -227,7 +227,7 @@ Brief description of changes
             <p>TOKNS is free and open source. We support development through:</p>
             <ul>
               <li><strong>GitHub Sponsors:</strong> Monthly financial support</li>
-              <li><strong>Pro Subscriptions:</strong> Hosted service revenue</li>
+              <li><strong>Donations:</strong> One-time or recurring contributions</li>
               <li><strong>Consulting:</strong> Custom deployments and support</li>
             </ul>
 

@@ -19,7 +19,7 @@ export default function GuidesPage() {
         </header>
 
         <div className="docs-alert docs-alert-info">
-          <strong>Pro Tip:</strong> TOKNS offers both free (15 tokens) and Pro ($7.99/user/month) tiers. Upgrade for unlimited tokens and team collaboration.
+          <strong>Tip:</strong> TOKNS is now fully open source with all features available. Self-host for full control or use the cloud version with donation support.
         </div>
 
         <section>
@@ -149,8 +149,8 @@ STRIPE_SECRET_KEY=sk_live_456def`}
         </section>
 
         <section>
-          <h2 id="team-collaboration">Team Collaboration (Pro Feature)</h2>
-          <p>Pro users can collaborate with team members:</p>
+          <h2 id="team-collaboration">Team Collaboration</h2>
+          <p>All users can collaborate with team members:</p>
 
           <h3 id="inviting-members">Inviting Team Members</h3>
           <ol>
