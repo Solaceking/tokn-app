@@ -87,7 +87,7 @@ export default function HelpPage() {
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="flex items-center gap-3">
               <Key className="w-6 h-6 text-[#FF9F1C]" />
-              <span className="text-xl font-bold tracking-wider">TOKN</span>
+              <span className="text-xl font-bold tracking-wider italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>TOKNS</span>
             </Link>
           </div>
           <nav className="flex items-center gap-4">
@@ -107,7 +107,7 @@ export default function HelpPage() {
           Help & Documentation
         </h1>
         <p className="text-[#737373] mb-8">
-          Everything you need to know about TOKN
+          Everything you need to know about TOKNS
         </p>
 
         {/* Quick Links */}
@@ -115,7 +115,7 @@ export default function HelpPage() {
           <FeatureCard
             icon={<Key className="w-5 h-5" />}
             title="Getting Started"
-            description="New to TOKN? Start here"
+            description="New to TOKNS? Start here"
             href="#getting-started"
           />
           <FeatureCard
@@ -127,7 +127,7 @@ export default function HelpPage() {
           <FeatureCard
             icon={<Search className="w-5 h-5" />}
             title="Features"
-            description="What you can do with TOKN"
+            description="What you can do with TOKNS"
             href="#features"
           />
           <FeatureCard
@@ -146,7 +146,7 @@ export default function HelpPage() {
           </h2>
           <div className="space-y-4 text-[#A3A3A3]">
             <p>
-              Welcome to TOKN! This guide will help you get started with managing your API tokens and keys securely.
+              Welcome to TOKNS! This guide will help you get started with managing your API tokens and keys securely.
             </p>
             <ol className="list-decimal list-inside space-y-2">
               <li><strong className="text-white">Create an account</strong> - Sign up with your email</li>
@@ -254,20 +254,20 @@ export default function HelpPage() {
           <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
           <div className="space-y-2">
             <FAQItem
-              question="Is TOKN free to use?"
-              answer="Yes! TOKN is completely free and open source. We're exploring optional donations in the future."
+              question="Is TOKNS free to use?"
+              answer="Yes! TOKNS is completely free and open source. We're exploring optional donations in the future."
             />
             <FAQItem
               question="Where are my tokens stored?"
               answer="Your tokens are stored in a Supabase PostgreSQL database with AES-256-GCM encryption. We never store tokens in plain text."
             />
             <FAQItem
-              question="Can I self-host TOKN?"
-              answer="Yes! TOKN is open source. You can deploy it on your own server or Vercel account. Check the README for deployment instructions."
+              question="Can I self-host TOKNS?"
+              answer="Yes! TOKNS is open source. You can deploy it on your own server or Vercel account. Check the README for deployment instructions."
             />
             <FAQItem
               question="What happens if I forget my password?"
-              answer="Use the password reset feature on the login page. TOKN uses Supabase Auth for secure password management."
+              answer="Use the password reset feature on the login page. TOKNS uses Supabase Auth for secure password management."
             />
             <FAQItem
               question="How does the AI parser work?"
@@ -289,7 +289,7 @@ export default function HelpPage() {
           <h2 className="text-2xl font-bold mb-4">Get Help</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <a
-              href="https://github.com/Solaceking/tokn-app"
+              href="https://github.com/Solaceking/tokns-app"
               target="_blank"
               rel="noopener noreferrer"
               className="p-4 border border-[#404040] bg-[#171717] hover:border-[#FF9F1C] transition-colors flex items-center gap-3"
@@ -302,7 +302,7 @@ export default function HelpPage() {
               <ExternalLink className="w-4 h-4 text-[#737373] ml-auto" />
             </a>
             <a
-              href="mailto:support@tokn.app"
+              href="mailto:support@tokns.app"
               className="p-4 border border-[#404040] bg-[#171717] hover:border-[#FF9F1C] transition-colors flex items-center gap-3"
             >
               <Mail className="w-5 h-5 text-[#737373]" />
@@ -328,7 +328,7 @@ export default function HelpPage() {
 
         {/* Version */}
         <div className="text-center text-[#525252] text-sm">
-          <p>TOKN v1.0.0 • Open Source Token Manager</p>
+          <p>TOKNS v1.0.0 • Open Source Token Manager</p>
         </div>
       </div>
     </div>

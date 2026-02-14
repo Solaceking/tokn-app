@@ -3,9 +3,13 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase-server';
 import { prisma } from '@/lib/db';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(key, { apiVersion: '2026-01-28.clover' });
+}
 
 // Price IDs from Stripe Dashboard
 const PRICE_IDS = {
@@ -14,6 +18,7 @@ const PRICE_IDS = {
 
 export async function POST(request: Request) {
   try {
+    const stripe = getStripe();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     

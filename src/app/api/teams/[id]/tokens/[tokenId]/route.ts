@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { prisma } from '@/lib/db';
-import { decrypt } from '@/lib/server-encryption';
+import { decrypt, encrypt } from '@/lib/server-encryption';
 
 // GET - Decrypt and return team token
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; tokenId: string } }
+  { params }: { params: Promise<{ id: string; tokenId: string }> }
 ) {
   try {
+    const { id, tokenId } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -27,7 +28,7 @@ export async function GET(
     // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
           { ownerId: dbUser.id },
           { members: { some: { userId: dbUser.id } } }
@@ -42,8 +43,8 @@ export async function GET(
     // Get team token
     const token = await prisma.teamToken.findUnique({
       where: { 
-        id: params.tokenId,
-        teamId: params.id
+        id: tokenId,
+        teamId: id
       }
     });
     
@@ -52,7 +53,7 @@ export async function GET(
     }
     
     // Decrypt the token
-    const decryptedToken = decrypt(token.token, token.iv);
+    const decryptedToken = await decrypt(token.token);
     
     return NextResponse.json({ 
       token: {
@@ -78,9 +79,10 @@ export async function GET(
 // PATCH - Update team token
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; tokenId: string } }
+  { params }: { params: Promise<{ id: string; tokenId: string }> }
 ) {
   try {
+    const { id, tokenId } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -99,7 +101,7 @@ export async function PATCH(
     // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
           { ownerId: dbUser.id },
           { members: { some: { userId: dbUser.id } } }
@@ -117,8 +119,8 @@ export async function PATCH(
     // Get existing token
     const existingToken = await prisma.teamToken.findUnique({
       where: { 
-        id: params.tokenId,
-        teamId: params.id
+        id: tokenId,
+        teamId: id
       }
     });
     
@@ -136,14 +138,13 @@ export async function PATCH(
     
     // If token is provided, encrypt it
     if (token) {
-      const { encryptedData, iv } = encrypt(token);
-      updateData.token = encryptedData;
-      updateData.iv = iv;
+      const encryptedToken = await encrypt(token);
+      updateData.token = encryptedToken;
     }
     
     // Update token
     const updatedToken = await prisma.teamToken.update({
-      where: { id: params.tokenId },
+      where: { id: tokenId },
       data: updateData
     });
     
@@ -170,9 +171,10 @@ export async function PATCH(
 // DELETE - Remove team token
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string; tokenId: string } }
+  { params }: { params: Promise<{ id: string; tokenId: string }> }
 ) {
   try {
+    const { id, tokenId } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -191,7 +193,7 @@ export async function DELETE(
     // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
           { ownerId: dbUser.id },
           { members: { some: { userId: dbUser.id } } }
@@ -206,8 +208,8 @@ export async function DELETE(
     // Delete team token
     await prisma.teamToken.delete({
       where: { 
-        id: params.tokenId,
-        teamId: params.id
+        id: tokenId,
+        teamId: id
       }
     });
     

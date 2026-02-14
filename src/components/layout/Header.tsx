@@ -3,15 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Key, Menu, LogOut, User as UserIcon, Sun, Moon, Settings } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { Key, Menu, LogOut, Sun, Moon, Settings } from 'lucide-react';
+import { createClient } from '@/lib/supabase';
 import { useAppTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface UserData {
   name: string;
@@ -27,6 +22,7 @@ interface HeaderProps {
 export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useAppTheme();
+  const supabase = createClient();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -54,39 +50,34 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  // Don't show header on login/register pages
   if (pathname === '/login' || pathname === '/register') {
     return null;
   }
 
   return (
-    <header className="border-b-2 border-[#404040] bg-[#171717] px-4 py-3 flex items-center gap-4">
-      {/* Menu Toggle */}
+    <header className="border-b-2 border-border bg-card px-4 py-3 flex items-center gap-4">
       <button
         onClick={onToggleSidebar}
-        className="p-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
+        className="p-2 border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
       >
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Logo */}
       <Link href="/dashboard" className="flex items-center gap-2">
-        <Key className="w-6 h-6 text-[#FF9F1C]" />
-        <span className="text-xl font-bold text-white tracking-wider">TOKN</span>
+        <Key className="w-6 h-6 text-primary" />
+        <span className="text-xl font-bold text-foreground tracking-wider italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>TOKNS</span>
       </Link>
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Navigation */}
       <nav className="flex items-center gap-1">
         <Link
           href="/dashboard"
           className={cn(
             'px-3 py-2 text-sm font-bold uppercase transition-colors',
             isActive('/dashboard')
-              ? 'text-[#FF9F1C]'
-              : 'text-[#737373] hover:text-white'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Dashboard
@@ -96,8 +87,8 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
           className={cn(
             'px-3 py-2 text-sm font-bold uppercase transition-colors',
             isActive('/parser')
-              ? 'text-[#FF9F1C]'
-              : 'text-[#737373] hover:text-white'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Parser
@@ -107,31 +98,27 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
           className={cn(
             'px-3 py-2 text-sm font-bold uppercase transition-colors',
             isActive('/settings')
-              ? 'text-[#FF9F1C]'
-              : 'text-[#737373] hover:text-white'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Settings
         </Link>
       </nav>
 
-      {/* Right Side Actions */}
-      <div className="flex items-center gap-2 pl-4 border-l border-[#404040]">
-        {/* Theme Toggle */}
+      <div className="flex items-center gap-2 pl-4 border-l border-border">
         <button
           onClick={toggleTheme}
-          className="p-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
+          className="p-2 border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
           title="Toggle theme"
         >
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
 
-        {/* User Info */}
         {!loading && user && (
-          <div className="flex items-center gap-3 pl-4 border-l border-[#404040]">
+          <div className="flex items-center gap-3 pl-4 border-l border-border">
             <div className="flex items-center gap-2">
-              {/* Avatar or initial */}
-              <div className="w-8 h-8 bg-[#262626] border border-[#404040] flex items-center justify-center text-[#737373] font-bold text-sm">
+              <div className="w-8 h-8 bg-secondary border border-border flex items-center justify-center text-muted-foreground font-bold text-sm">
                 {user.avatar_url ? (
                   <img 
                     src={user.avatar_url} 
@@ -143,19 +130,18 @@ export function Header({ sidebarOpen = true, onToggleSidebar }: HeaderProps) {
                 )}
               </div>
               <div className="hidden md:block">
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold text-foreground">
                   {user.name || user.email?.split('@')[0]}
                 </div>
-                <div className="text-xs text-[#737373] hidden lg:block">
+                <div className="text-xs text-muted-foreground hidden lg:block">
                   {user.email}
                 </div>
               </div>
             </div>
 
-            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 border border-[#404040] text-[#737373] hover:border-red-600 hover:text-red-600 transition-colors"
+              className="p-2 border border-border text-muted-foreground hover:border-red-600 hover:text-red-600 transition-colors"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />

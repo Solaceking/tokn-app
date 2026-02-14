@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { decrypt } from '@/lib/server-encryption';
+import { checkApiAccessForUser } from '@/lib/api-middleware';
 
-// Service-specific testing configurations
 const serviceConfigs: Record<string, {
   testUrl: string;
   headers?: Record<string, string>;
@@ -56,7 +56,7 @@ const serviceConfigs: Record<string, {
   'azure': {
     testUrl: 'https://management.azure.com/subscriptions?api-version=2020-01-01',
     method: 'GET',
-    successStatusCodes: [200, 401], // 401 still means the token is valid format
+    successStatusCodes: [200, 401],
   },
   'slack': {
     testUrl: 'https://slack.com/api/auth.test',
@@ -90,32 +90,28 @@ const serviceConfigs: Record<string, {
   },
 };
 
-// POST - Test token validity
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const dbUser = await prisma.users.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
     }
     
-    // Get token
+    const { id } = await params;
+    
     const token = await prisma.token.findUnique({
       where: { 
-        id: params.tokenId,
-        userId: dbUser.id
+        id,
+        userId: user.id
       }
     });
     
@@ -123,20 +119,16 @@ export async function POST(
       return NextResponse.json({ error: 'Token not found' }, { status: 404 });
     }
     
-    // Decrypt the token
-    const decryptedToken = decrypt(token.token, token.iv);
+    const decryptedToken = await decrypt(token.token);
     
-    // Get service configuration
     const serviceName = token.service.toLowerCase();
     const config = serviceConfigs[serviceName] || serviceConfigs.default;
     
-    // Prepare headers
     const headers: Record<string, string> = {
-      'User-Agent': 'TOKN/1.0 (https://github.com/Solaceking/tokn-app)',
+      'User-Agent': 'TOKNS/1.0 (https://github.com/Solaceking/tokns-app)',
       ...config.headers,
     };
     
-    // Add authentication based on service
     if (serviceName === 'github') {
       headers['Authorization'] = `token ${decryptedToken}`;
     } else if (serviceName === 'openai') {
@@ -150,7 +142,6 @@ export async function POST(
       headers['Authorization'] = `Bearer ${decryptedToken}`;
       headers['Stripe-Version'] = '2023-10-16';
     } else if (serviceName === 'aws') {
-      // AWS uses Signature Version 4 - this is a simplified test
       headers['Authorization'] = `AWS4-HMAC-SHA256 Credential=${decryptedToken}`;
     } else if (serviceName === 'azure') {
       headers['Authorization'] = `Bearer ${decryptedToken}`;
@@ -162,12 +153,11 @@ export async function POST(
       headers['Authorization'] = `Bearer ${decryptedToken}`;
     } else if (serviceName === 'reddit') {
       headers['Authorization'] = `Bearer ${decryptedToken}`;
-      headers['User-Agent'] = 'TOKN/1.0 by /u/Solaceking';
+      headers['User-Agent'] = 'TOKNS/1.0 by /u/Solaceking';
     } else if (serviceName === 'spotify') {
       headers['Authorization'] = `Bearer ${decryptedToken}`;
     }
     
-    // Make the test request
     const startTime = Date.now();
     let response: Response;
     let statusCode = 0;
@@ -175,7 +165,7 @@ export async function POST(
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
       response = await fetch(config.testUrl, {
         method: config.method,
@@ -187,7 +177,7 @@ export async function POST(
       statusCode = response.status;
       responseText = await response.text();
     } catch (error) {
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         return NextResponse.json({
           valid: false,
           statusCode: 408,
@@ -200,16 +190,14 @@ export async function POST(
         valid: false,
         statusCode: 0,
         responseTime: Date.now() - startTime,
-        message: `Network error: ${error.message}`
+        message: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     }
     
     const responseTime = Date.now() - startTime;
     
-    // Check if the response indicates a valid token
     const isValid = config.successStatusCodes.includes(statusCode);
     
-    // Parse response for additional info
     let message = '';
     if (!isValid) {
       try {
@@ -222,10 +210,9 @@ export async function POST(
       message = 'Token is valid';
     }
     
-    // Log the test result
     await prisma.activity.create({
       data: {
-        userId: dbUser.id,
+        userId: user.id,
         action: 'TEST',
         service: token.service,
         details: `Token test: ${isValid ? 'VALID' : 'INVALID'} (${statusCode})`

@@ -11,24 +11,34 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TOKN - Your Token Command Center",
+  title: "TOKNS - Your Token Command Center",
   description: "Secure API token management with brutalist precision. Parse, store, and sync your tokens with zero compromise.",
-  keywords: ["TOKN", "API tokens", "token management", "developer tools", "security"],
-  authors: [{ name: "TOKN Team" }],
+  keywords: ["TOKNS", "API tokens", "token management", "developer tools", "security", "token vault", "API keys"],
+  authors: [{ name: "TOKNS Team" }],
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.svg",
   },
   openGraph: {
-    title: "TOKN - Your Token Command Center",
-    description: "Secure API token management with brutalist precision",
-    url: "https://tokn.dev",
-    siteName: "TOKN",
+    title: "TOKNS - Your Token Command Center",
+    description: "Secure API token management with brutalist precision. Parse, store, and sync your tokens with zero compromise.",
+    url: "https://tokns.dev",
+    siteName: "TOKNS",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TOKN - Your Token Command Center",
+    title: "TOKNS - Your Token Command Center",
     description: "Secure API token management with brutalist precision",
+    creator: "@tokns",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

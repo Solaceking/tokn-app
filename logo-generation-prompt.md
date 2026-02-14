@@ -1,7 +1,7 @@
-# TOKN Logo Generation Prompt for AI
+# TOKNS Logo Generation Prompt for AI
 
 ## Project Overview
-**TOKN** (pronounced "token") is a secure, open-source token and API key manager for developers. It provides AES-256-GCM encryption for storing sensitive API keys and tokens, with features like AI-powered parsing, token testing, team collaboration, and activity tracking.
+**TOKNS** (pronounced "tokens") is a secure, open-source token and API key manager for developers. It provides AES-256-GCM encryption for storing sensitive API keys and tokens, with features like AI-powered parsing, token testing, team collaboration, and activity tracking.
 
 ## Logo Concept Requirements
 Create a modern, clean, and professional logo that conveys:
@@ -20,7 +20,7 @@ Create a modern, clean, and professional logo that conveys:
 - **Key Words**: Secure, Developer, Token, Encryption, Modern, Clean
 
 ## Logo Variations Needed
-1. **Primary Logo**: Full "TOKN" wordmark with icon
+1. **Primary Logo**: Full "TOKNS" wordmark with icon
 2. **Icon Only**: Abstract symbol that works at small sizes (favicon, app icon)
 3. **Monochrome Versions**: Black/white for different backgrounds
 4. **Favicon**: 32x32 and 16x16 pixel versions
@@ -42,7 +42,7 @@ Create a modern, clean, and professional logo that conveys:
 ### For Midjourney/DALL-E/Stable Diffusion:
 
 ```
-Create a modern, minimalist logo for a developer tool called "TOKN" (pronounced "token") - a secure API key and token manager. The logo should convey security, developer tools, and modern technology.
+Create a modern, minimalist logo for a developer tool called "TOKNS" (pronounced "tokens") - a secure API key and token manager. The logo should convey security, developer tools, and modern technology.
 
 Style: Geometric, abstract, clean lines, minimalist design, tech aesthetic, vector-style, professional
 
@@ -52,7 +52,7 @@ Concept: Combine elements of security (shield, lock, key) with developer tools (
 
 Requirements:
 - Clean, scalable vector design
-- Works as both full wordmark "TOKN" and standalone icon
+- Works as both full wordmark "TOKNS" and standalone icon
 - Modern sans-serif typography for wordmark
 - Icon should be recognizable at small sizes (16x16 pixels)
 - Professional, trustworthy appearance
@@ -60,7 +60,7 @@ Requirements:
 Avoid: Cartoonish styles, too many details, cluttered designs, dated aesthetics
 
 Variations needed:
-1. Full logo with "TOKN" text and icon
+1. Full logo with "TOKNS" text and icon
 2. Icon only (abstract symbol)
 3. Monochrome versions for different backgrounds
 4. Favicon versions (16x16, 32x32 pixels)

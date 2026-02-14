@@ -4,54 +4,30 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// Helper to get database user
-async function getDbUser(supabaseUser: any) {
-  let dbUser = await prisma.users.findUnique({
-    where: { email: supabaseUser.email },
-  });
-  
-  if (!dbUser) {
-    dbUser = await prisma.users.create({
-      data: {
-        email: supabaseUser.email,
-        username: supabaseUser.email?.split('@')[0] || 'user',
-        full_name: supabaseUser.user_metadata?.full_name || null,
-      },
-    });
-  }
-  
-  return dbUser;
-}
-
-// GET /api/activities - Get user's activity log
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Get database user
-    const dbUser = await getDbUser(user);
     
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     
     const activities = await prisma.activity.findMany({
-      where: { userId: dbUser.id },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: Math.min(limit, 100),
       skip: offset,
     });
     
     const total = await prisma.activity.count({
-      where: { userId: dbUser.id },
+      where: { userId: user.id },
     });
     
     return NextResponse.json({

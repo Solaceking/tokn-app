@@ -66,9 +66,7 @@ interface Activity {
   createdAt: string;
 }
 
-// Create Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 
 // Stats Card Component
 function StatCard({
@@ -430,7 +428,7 @@ export default function DashboardPage() {
         <div className="p-4 border-b border-[#404040] flex items-center gap-3">
           <Key className="w-6 h-6 text-[#FF9F1C] shrink-0" />
           {sidebarOpen && (
-            <span className="text-xl font-bold text-white tracking-wider">TOKN</span>
+            <span className="text-xl font-bold text-white tracking-wider italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>TOKNS</span>
           )}
         </div>
 
@@ -492,7 +490,7 @@ export default function DashboardPage() {
             {sidebarOpen && <span className="text-xs text-[#525252] uppercase mb-2 block">Share</span>}
             <div className="flex gap-2">
               <a
-                href="https://github.com/Solaceking/tokn-app"
+                href="https://github.com/Solaceking/tokns-app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#FF9F1C] hover:text-[#FF9F1C] transition-colors"
@@ -502,7 +500,7 @@ export default function DashboardPage() {
                 {sidebarOpen && <span className="text-xs font-bold">Star</span>}
               </a>
               <a
-                href="https://twitter.com/intent/tweet?text=Check+out+TOKN:+A+secure+open+source+token+manager+for+developers&url=https://github.com/Solaceking/tokn-app"
+                href="https://twitter.com/intent/tweet?text=Check+out+TOKNS:+A+secure+open+source+token+manager+for+developers&url=https://github.com/Solaceking/tokns-app"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-[#404040] text-[#737373] hover:border-[#1DA1F2] hover:text-[#1DA1F2] transition-colors"

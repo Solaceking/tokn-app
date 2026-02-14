@@ -1,4 +1,4 @@
-# TOKN - Open Source Token Manager
+# TOKNS - Open Source Token Manager
 
 A secure, open-source token/API key manager for developers.
 
@@ -108,7 +108,7 @@ Build the most developer-friendly, open-source token manager with:
 ## 📁 Project Structure
 
 ```
-tokn-app/
+tokns-app/
 ├── src/
 │   ├── app/
 │   │   ├── api/           # API routes

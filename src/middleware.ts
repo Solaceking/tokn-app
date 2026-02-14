@@ -5,8 +5,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/login', '/register', '/auth/callback'];
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/auth/');
+  const publicRoutes = ['/', '/login', '/register', '/auth/callback', '/api/health'];
+  const isPublicRoute = publicRoutes.includes(pathname) || 
+                        pathname.startsWith('/auth/') || 
+                        pathname.startsWith('/docs') ||
+                        pathname === '/api/health';
 
   // Skip Supabase if credentials are not configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

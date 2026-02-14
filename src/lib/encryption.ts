@@ -1,43 +1,40 @@
-// Simple encryption utilities for demo purposes
-// In production, use proper encryption libraries
-
-const ENCRYPTION_KEY = 'tokn-demo-key';
+/**
+ * Client-side token utilities
+ * 
+ * IMPORTANT: These functions are for DISPLAY MASKING only, NOT encryption.
+ * Real encryption must always happen server-side using server-encryption.ts
+ * 
+ * Never use these functions to secure sensitive data - they provide no security,
+ * only visual masking for UI display purposes.
+ */
 
 /**
- * Simple base64 encoding with key mixing (for demo only)
- * In production, use proper AES encryption
+ * Encode token for localStorage storage (base64 only)
+ * This is NOT encryption - it only prevents casual browsing of localStorage
+ * Real encryption happens server-side using server-encryption.ts
  */
-export function encrypt(text: string): string {
+export function encodeForStorage(text: string): string {
   try {
-    const encoded = btoa(encodeURIComponent(text));
-    const mixed = encoded.split('').map((char, i) => {
-      const keyChar = ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-      return String.fromCharCode(char.charCodeAt(0) ^ (keyChar % 64));
-    }).join('');
-    return btoa(mixed);
+    return btoa(encodeURIComponent(text));
   } catch {
     return text;
   }
 }
 
 /**
- * Decrypt text encoded with encrypt function
+ * Decode token from localStorage storage
  */
-export function decrypt(encryptedText: string): string {
+export function decodeFromStorage(encoded: string): string {
   try {
-    const decoded = atob(encryptedText);
-    const unmixed = decoded.split('').map((char, i) => {
-      const keyChar = ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-      return String.fromCharCode(char.charCodeAt(0) ^ (keyChar % 64));
-    }).join('');
-    return decodeURIComponent(atob(unmixed));
+    return decodeURIComponent(atob(encoded));
   } catch {
-    return encryptedText;
+    return encoded;
   }
 }
 
 /**
  * Mask a token for display (show first 3 and last 4 characters)
+ * This is NOT encryption - it only obscures the token visually
  */
 export function maskToken(token: string): string {
   if (!token || token.length < 8) return token;

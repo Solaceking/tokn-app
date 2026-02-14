@@ -1,36 +1,32 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { encrypt } from '@/lib/server-encryption';
+import { checkApiAccessForUser } from '@/lib/api-middleware';
 
-// GET team tokens
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const dbUser = await prisma.users.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
     }
     
-    // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
-          { ownerId: dbUser.id },
-          { members: { some: { userId: dbUser.id } } }
+          { ownerId: user.id },
+          { members: { some: { userId: user.id } } }
         ]
       }
     });
@@ -39,15 +35,13 @@ export async function GET(
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
     
-    // Get team tokens
     const tokens = await prisma.teamToken.findMany({
-      where: { teamId: params.id },
+      where: { teamId: id },
       orderBy: {
         createdAt: 'desc'
       }
     });
     
-    // Return tokens without decrypted values for security
     const safeTokens = tokens.map(token => ({
       id: token.id,
       service: token.service,
@@ -68,34 +62,29 @@ export async function GET(
   }
 }
 
-// POST - Create team token
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const dbUser = await prisma.users.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
     }
     
-    // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [
-          { ownerId: dbUser.id },
-          { members: { some: { userId: dbUser.id } } }
+          { ownerId: user.id },
+          { members: { some: { userId: user.id } } }
         ]
       }
     });
@@ -113,16 +102,13 @@ export async function POST(
       }, { status: 400 });
     }
     
-    // Encrypt the token
-    const { encryptedData, iv } = encrypt(token);
+    const encryptedToken = await encrypt(token);
     
-    // Create team token
     const teamToken = await prisma.teamToken.create({
       data: {
-        teamId: params.id,
+        teamId: id,
         service: service.trim(),
-        token: encryptedData,
-        iv,
+        token: encryptedToken,
         description: description?.trim() || null,
         category: category?.trim() || null
       }

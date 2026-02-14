@@ -4,44 +4,27 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { decrypt } from '@/lib/server-encryption';
 import { AIProviderType } from '@/lib/ai-providers/types';
 import { parseWithAI } from '@/lib/ai-providers/service';
 import { prisma } from '@/lib/db';
 import { scanForTokens, DetectedToken } from '@/lib/token-parser';
+import { withRateLimit, createRateLimiter } from '@/lib/rate-limit';
 
-// Helper to get database user
-async function getDbUser(supabaseUser: any) {
-  let dbUser = await prisma.users.findUnique({
-    where: { email: supabaseUser.email },
-  });
-  
-  if (!dbUser) {
-    dbUser = await prisma.users.create({
-      data: {
-        email: supabaseUser.email,
-        username: supabaseUser.email?.split('@')[0] || 'user',
-        full_name: supabaseUser.user_metadata?.full_name || null,
-      },
-    });
-  }
-  
-  return dbUser;
-}
-
-// POST /api/parse/ai - Parse text using AI
 export async function POST(request: Request) {
+  const rateLimitResponse = withRateLimit(request, 'aiParsing');
+  if (rateLimitResponse) return rateLimitResponse;
+  
+  const limiter = createRateLimiter('aiParsing');
+  const rateResult = limiter(request);
+  
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Get database user
-    const dbUser = await getDbUser(user);
     
     const body = await request.json();
     const { text, provider: requestedProvider, useFallback = true } = body;
@@ -57,12 +40,11 @@ export async function POST(request: Request) {
     let apiKey: string | null = null;
     let selectedModel: string | null = null;
     
-    // If specific provider requested, use it
     if (requestedProvider) {
       const savedProvider = await prisma.userAIProvider.findUnique({
         where: {
           userId_provider: {
-            userId: dbUser.id,
+            userId: user.id,
             provider: requestedProvider as AIProviderType,
           },
         },
@@ -75,11 +57,10 @@ export async function POST(request: Request) {
       }
     }
     
-    // If no provider specified or not found, use default
     if (!provider) {
       const defaultProvider = await prisma.userAIProvider.findFirst({
         where: {
-          userId: dbUser.id,
+          userId: user.id,
           isDefault: true,
         },
       });
@@ -91,10 +72,9 @@ export async function POST(request: Request) {
       }
     }
     
-    // If still no provider, try any available
     if (!provider) {
       const anyProvider = await prisma.userAIProvider.findFirst({
-        where: { userId: dbUser.id },
+        where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
       });
       
@@ -105,21 +85,22 @@ export async function POST(request: Request) {
       }
     }
     
-    // If no AI provider configured, fall back to regex parser
     if (!provider || !apiKey) {
       if (useFallback) {
         const tokens = scanForTokens(text);
         
-        // Log the parse activity
         await logParseActivity(user.id, 'regex', 'regex-fallback', tokens.length, text);
         
-        return NextResponse.json({
+        const response = NextResponse.json({
           tokens,
           provider: null,
           model: null,
           method: 'regex_fallback',
           message: 'No AI provider configured. Using regex parser.',
         });
+        response.headers.set('X-RateLimit-Limit', rateResult.limit.toString());
+        response.headers.set('X-RateLimit-Remaining', rateResult.remaining.toString());
+        return response;
       }
       
       return NextResponse.json(
@@ -128,19 +109,17 @@ export async function POST(request: Request) {
       );
     }
     
-    // Parse with AI
     const startTime = Date.now();
     const result = await parseWithAI(provider, apiKey, selectedModel!, text);
     const duration = Date.now() - startTime;
     
     if (result.error) {
-      // If AI fails, optionally fall back to regex
       if (useFallback) {
         const tokens = scanForTokens(text);
         
         await logParseActivity(user.id, provider, selectedModel!, tokens.length, text, result.error);
         
-        return NextResponse.json({
+        const response = NextResponse.json({
           tokens,
           provider,
           model: selectedModel,
@@ -148,6 +127,9 @@ export async function POST(request: Request) {
           error: result.error,
           duration,
         });
+        response.headers.set('X-RateLimit-Limit', rateResult.limit.toString());
+        response.headers.set('X-RateLimit-Remaining', rateResult.remaining.toString());
+        return response;
       }
       
       return NextResponse.json(
@@ -156,10 +138,8 @@ export async function POST(request: Request) {
       );
     }
     
-    // Log successful parse
     await logParseActivity(user.id, provider, selectedModel!, result.tokens.length, text);
     
-    // Convert to DetectedToken format
     const tokens: DetectedToken[] = result.tokens.map((t, index) => ({
       id: `ai-${Date.now()}-${index}`,
       name: t.service,
@@ -169,7 +149,7 @@ export async function POST(request: Request) {
       description: t.description || `${t.service} API Key`,
     }));
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       tokens,
       provider,
       model: selectedModel,
@@ -177,6 +157,9 @@ export async function POST(request: Request) {
       duration,
       rawResponse: process.env.NODE_ENV === 'development' ? result.rawResponse : undefined,
     });
+    response.headers.set('X-RateLimit-Limit', rateResult.limit.toString());
+    response.headers.set('X-RateLimit-Remaining', rateResult.remaining.toString());
+    return response;
   } catch (error) {
     console.error('AI parse error:', error);
     return NextResponse.json(
@@ -186,9 +169,6 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * Log parse activity to database
- */
 async function logParseActivity(
   userId: string,
   provider: string,
@@ -198,7 +178,6 @@ async function logParseActivity(
   error?: string
 ): Promise<void> {
   try {
-    // Truncate input for storage
     const truncatedInput = inputText.slice(0, 500);
     
     await prisma.parseHistory.create({
@@ -211,7 +190,6 @@ async function logParseActivity(
       },
     });
     
-    // Also log to activity
     await prisma.activity.create({
       data: {
         userId,

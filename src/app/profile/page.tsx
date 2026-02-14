@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase';
+import { signOut } from 'next-auth/react';
 import {
   Key,
   User,
@@ -15,12 +16,6 @@ import {
   LogOut,
 } from 'lucide-react';
 
-// Create Supabase client
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 interface UserData {
   id: string;
   email: string;
@@ -30,11 +25,18 @@ interface UserData {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const supabase = createClient();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [useLocalAuth, setUseLocalAuth] = useState(false);
+
+  useEffect(() => {
+    const localAuth = process.env.NEXT_PUBLIC_USE_LOCAL_AUTH === 'true';
+    setUseLocalAuth(localAuth);
+  }, []);
 
   useEffect(() => {
     fetchUserData();
@@ -75,7 +77,7 @@ export default function ProfilePage() {
       } else {
         setMessage('Failed to update profile');
       }
-    } catch (error) {
+    } catch {
       setMessage('An error occurred');
     } finally {
       setSaving(false);
@@ -83,7 +85,11 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (useLocalAuth) {
+      await signOut({ redirect: false });
+    } else {
+      await supabase.auth.signOut();
+    }
     router.push('/');
     router.refresh();
   };
@@ -99,12 +105,16 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        await supabase.auth.signOut();
+        if (useLocalAuth) {
+          await signOut({ redirect: false });
+        } else {
+          await supabase.auth.signOut();
+        }
         router.push('/');
       } else {
         alert('Failed to delete account');
       }
-    } catch (error) {
+    } catch {
       alert('An error occurred');
     }
   };
@@ -124,7 +134,7 @@ export default function ProfilePage() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Key className="w-6 h-6 text-[#FF9F1C]" />
-            <span className="text-xl font-bold tracking-wider">TOKN</span>
+            <span className="text-xl font-bold tracking-wider italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>TOKNS</span>
           </div>
           <nav className="flex items-center gap-4">
             <Link href="/dashboard" className="text-[#737373] hover:text-white">

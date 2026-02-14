@@ -9,19 +9,20 @@ datasource db {
 
 // Supabase Auth tables (introspected)
 model users {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email      String     @unique
-  username   String     @unique
-  full_name  String?
-  avatar_url String?
-  plan       Plan       @default(FREE)
-  created_at DateTime?  @default(now()) @db.Timestamptz(6)
-  comments   comments[]
-  posts      posts[]
-  tokens     Token[]
-  aiProviders UserAIProvider[]
-  activities Activity[]
-  parseHistories ParseHistory[]
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String           @unique
+  username        String           @unique
+  full_name       String?
+  avatar_url      String?
+  password        String?
+  plan            Plan             @default(FREE)
+  created_at      DateTime?        @default(now()) @db.Timestamptz(6)
+  comments        comments[]
+  posts           posts[]
+  tokens          Token[]
+  aiProviders     UserAIProvider[]
+  activities      Activity[]
+  parseHistories  ParseHistory[]
   teamMemberships TeamMember[]
 }
 
@@ -54,19 +55,18 @@ model posts {
 
 // TOKN - API Token model
 model Token {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String   @db.Uuid
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String      @db.Uuid
   service     String
-  token       String   // Encrypted
+  token       String // Encrypted (IV embedded in ciphertext)
   description String?
   category    String?
   status      TokenStatus @default(ACTIVE)
-  iv          String   // Initialization vector for encryption
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
-  
-  user        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([service])
 }
@@ -79,18 +79,17 @@ enum TokenStatus {
 
 // TOKN - User's AI Provider configurations
 model UserAIProvider {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String   @db.Uuid
-  provider     String   // deepseek, openai, google, openrouter, zai
-  apiKey       String   // Encrypted
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @db.Uuid
+  provider      String // deepseek, openai, google, openrouter, zai
+  apiKey        String // Encrypted (IV embedded in ciphertext)
   selectedModel String?
-  isDefault    Boolean  @default(false)
-  iv           String   // Initialization vector for encryption
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
-  
-  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, provider])
   @@index([userId])
 }
@@ -99,13 +98,13 @@ model UserAIProvider {
 model Activity {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @db.Uuid
-  action    String   // CREATE, UPDATE, DELETE, COPY, REVEAL, PARSE
+  action    String // CREATE, UPDATE, DELETE, COPY, REVEAL, PARSE
   service   String?
   details   String?
   createdAt DateTime @default(now()) @db.Timestamptz(6)
-  
-  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([createdAt])
 }
@@ -116,43 +115,45 @@ model ParseHistory {
   userId       String   @db.Uuid
   provider     String
   model        String?
+  inputText    String?
   inputTokens  Int?
   outputTokens Int?
-  success      Boolean
+  tokensFound  Int?
+  success      Boolean  @default(true)
   error        String?
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  
-  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([createdAt])
 }
 
 // TOKN - Team model (for Pro tier team collaboration)
 model Team {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
-  ownerId     String   @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
-  
-  members     TeamMember[]
-  tokens      TeamToken[]
-  
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  ownerId   String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  members TeamMember[]
+  tokens  TeamToken[]
+
   @@index([ownerId])
 }
 
 // TOKN - Team members
 model TeamMember {
-  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  teamId    String         @db.Uuid
-  userId    String         @db.Uuid
-  role      TeamRole       @default(MEMBER)
-  joinedAt  DateTime       @default(now()) @db.Timestamptz(6)
-  
-  team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user      users          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId   String   @db.Uuid
+  userId   String   @db.Uuid
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
@@ -166,18 +167,17 @@ enum TeamRole {
 
 // TOKN - Team-shared tokens
 model TeamToken {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  teamId      String   @db.Uuid
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId      String      @db.Uuid
   service     String
-  token       String   // Encrypted
+  token       String // Encrypted (IV embedded in ciphertext)
   description String?
   category    String?
   status      TokenStatus @default(ACTIVE)
-  iv          String   // Initialization vector for encryption
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
-  
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
   @@index([teamId])
 }

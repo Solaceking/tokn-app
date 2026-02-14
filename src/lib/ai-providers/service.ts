@@ -233,8 +233,8 @@ export async function parseWithAI(
       
       // Add OpenRouter-specific headers
       if (provider === 'openrouter') {
-        headers['HTTP-Referer'] = 'https://tokn.app';
-        headers['X-Title'] = 'TOKN';
+        headers['HTTP-Referer'] = 'https://tokns.app';
+        headers['X-Title'] = 'TOKNS';
       }
       
       response = await fetch(`${config.baseUrl}/chat/completions`, {

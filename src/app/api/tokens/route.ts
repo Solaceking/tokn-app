@@ -1,34 +1,16 @@
 /**
  * Token Management API
- * Uses Supabase Auth and Prisma with server-side encryption
+ * Supports both Supabase Auth and Local Auth via auth abstraction
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { encryptToken, decryptToken } from '@/lib/server-encryption';
 import { prisma } from '@/lib/db';
 import { TokenStatus } from '@prisma/client';
+import { withRateLimit, createRateLimiter, getRateLimitHeaders } from '@/lib/rate-limit';
+import { checkApiAccessForUser } from '@/lib/api-middleware';
 
-// Helper to get database user
-async function getDbUser(supabaseUser: any) {
-  let dbUser = await prisma.users.findUnique({
-    where: { email: supabaseUser.email },
-  });
-  
-  if (!dbUser) {
-    dbUser = await prisma.users.create({
-      data: {
-        email: supabaseUser.email,
-        username: supabaseUser.email?.split('@')[0] || 'user',
-        full_name: supabaseUser.user_metadata?.full_name || null,
-      },
-    });
-  }
-  
-  return dbUser;
-}
-
-// Check token limit for free users
 async function checkTokenLimit(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
   const FREE_TOKEN_LIMIT = 15;
   
@@ -37,12 +19,10 @@ async function checkTokenLimit(userId: string): Promise<{ allowed: boolean; curr
     select: { plan: true },
   });
   
-  // Pro users have unlimited tokens
   if (user?.plan === 'PRO') {
     return { allowed: true, current: 0, limit: -1 };
   }
   
-  // Check token count for free users
   const tokenCount = await prisma.token.count({
     where: { userId },
   });
@@ -54,31 +34,28 @@ async function checkTokenLimit(userId: string): Promise<{ allowed: boolean; curr
   };
 }
 
-// GET /api/tokens - Get all tokens for current user
 export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get database user
-    const dbUser = await getDbUser(user);
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
+    }
     
-    // Check for export query param
     const { searchParams } = new URL(request.url);
     const exportType = searchParams.get('export');
     
     const tokens = await prisma.token.findMany({
-      where: { userId: dbUser.id },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
     
-    // Handle export
     if (exportType === 'env') {
-      // Decrypt tokens for export
       const envLines = await Promise.all(tokens.map(async (t) => {
         const decrypted = await decryptToken(t.token);
         const serviceName = t.service.toUpperCase().replace(/\s+/g, '_');
@@ -92,7 +69,6 @@ export async function GET(request: Request) {
       });
     }
     
-    // Return tokens without decrypting (frontend shows masked)
     return NextResponse.json(tokens);
   } catch (error) {
     console.error('Get tokens error:', error);
@@ -103,18 +79,24 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/tokens - Create a new token
 export async function POST(request: Request) {
+  const rateLimitResponse = withRateLimit(request, 'tokenCreation');
+  if (rateLimitResponse) return rateLimitResponse;
+  
+  const limiter = createRateLimiter('tokenCreation');
+  const rateResult = limiter(request);
+  
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get database user
-    const dbUser = await getDbUser(user);
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
+    }
     
     const body = await request.json();
     const { service, token, description, category, status } = body;
@@ -126,8 +108,7 @@ export async function POST(request: Request) {
       );
     }
     
-    // Check token limit for free users
-    const limitCheck = await checkTokenLimit(dbUser.id);
+    const limitCheck = await checkTokenLimit(user.id);
     if (!limitCheck.allowed) {
       return NextResponse.json({
         error: 'Token limit reached',
@@ -137,7 +118,6 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
     
-    // Encrypt the token before storing
     const encryptedToken = await encryptToken(token);
     
     const newToken = await prisma.token.create({
@@ -147,14 +127,16 @@ export async function POST(request: Request) {
         description: description || '',
         category: category || 'Other',
         status: (status as TokenStatus) || 'ACTIVE',
-        userId: dbUser.id,
+        userId: user.id,
       },
     });
     
-    // Log activity
-    await logActivity(dbUser.id, 'CREATE', service, 'Token created');
+    await logActivity(user.id, 'CREATE', service, 'Token created');
     
-    return NextResponse.json(newToken);
+    const response = NextResponse.json(newToken);
+    response.headers.set('X-RateLimit-Limit', rateResult.limit.toString());
+    response.headers.set('X-RateLimit-Remaining', rateResult.remaining.toString());
+    return response;
   } catch (error) {
     console.error('Create token error:', error);
     return NextResponse.json(
@@ -164,14 +146,17 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH /api/tokens - Update a token
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
     }
     
     const body = await request.json();
@@ -184,7 +169,6 @@ export async function PATCH(request: Request) {
       );
     }
     
-    // Build update data
     const updateData: {
       service?: string;
       description?: string;
@@ -217,10 +201,8 @@ export async function PATCH(request: Request) {
       );
     }
     
-    // Log activity
     await logActivity(user.id, 'UPDATE', service || 'Token', 'Token updated');
     
-    // Return the updated token
     const tokenData = await prisma.token.findUnique({
       where: { id },
     });
@@ -235,14 +217,17 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/tokens - Delete a token
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
     }
     
     const { searchParams } = new URL(request.url);
@@ -255,7 +240,6 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Get token info before deleting for activity log
     const token = await prisma.token.findFirst({
       where: { id, userId: user.id },
     });
@@ -274,7 +258,6 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Log activity
     if (token) {
       await logActivity(user.id, 'DELETE', token.service, 'Token deleted');
     }
@@ -289,9 +272,6 @@ export async function DELETE(request: Request) {
   }
 }
 
-/**
- * Helper to log activity
- */
 async function logActivity(
   userId: string,
   action: string,

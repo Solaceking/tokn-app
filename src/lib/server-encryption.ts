@@ -76,7 +76,7 @@ export async function encrypt(text: string): Promise<string> {
     
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      keyData,
+      keyData.buffer as ArrayBuffer,
       { name: ALGORITHM },
       false,
       ['encrypt']
@@ -88,7 +88,7 @@ export async function encrypt(text: string): Promise<string> {
     const encrypted = await crypto.subtle.encrypt(
       {
         name: ALGORITHM,
-        iv,
+        iv: iv.buffer as ArrayBuffer,
         tagLength: TAG_LENGTH,
       },
       cryptoKey,
@@ -125,7 +125,7 @@ export async function decrypt(encryptedBase64: string): Promise<string> {
     
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      keyData,
+      keyData.buffer as ArrayBuffer,
       { name: ALGORITHM },
       false,
       ['decrypt']
@@ -134,7 +134,7 @@ export async function decrypt(encryptedBase64: string): Promise<string> {
     const decrypted = await crypto.subtle.decrypt(
       {
         name: ALGORITHM,
-        iv,
+        iv: iv.buffer as ArrayBuffer,
         tagLength: TAG_LENGTH,
       },
       cryptoKey,

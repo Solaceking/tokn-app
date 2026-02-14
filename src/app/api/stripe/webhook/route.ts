@@ -3,14 +3,19 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { headers } from 'next/headers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(key, { apiVersion: '2026-01-28.clover' });
+}
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: Request) {
   try {
+    const stripe = getStripe();
     const body = await request.text();
     const headersList = await headers();
     const signature = headersList.get('stripe-signature')!;

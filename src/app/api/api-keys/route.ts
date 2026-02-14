@@ -1,33 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { checkApiAccessForUser } from '@/lib/api-middleware';
 
-// Helper to get authenticated user from Supabase
-async function getAuthenticatedUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
-  
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error || !user) {
-    return null;
-  }
-  
-  return user;
-}
-
-// Generate a random token
 function generateToken(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -37,7 +11,6 @@ function generateToken(length: number): string {
   return result;
 }
 
-// GET all API keys
 export async function GET() {
   try {
     const user = await getAuthenticatedUser();
@@ -46,7 +19,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // For now, return empty array - you could create an ApiKey model if needed
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
+    }
+    
     return NextResponse.json({ keys: [] });
   } catch (error) {
     console.error('Get API keys error:', error);
@@ -54,7 +31,6 @@ export async function GET() {
   }
 }
 
-// POST create new API key
 export async function POST() {
   try {
     const user = await getAuthenticatedUser();
@@ -63,13 +39,14 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Generate a new API key
-    const fullKey = `tokn_${generateToken(32)}`;
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
+    }
+    
+    const fullKey = `tokns_${generateToken(32)}`;
     const prefix = fullKey.substring(0, 8);
     const suffix = fullKey.substring(fullKey.length - 4);
-    
-    // For demo purposes, we just return the key once
-    // In production, you'd hash and store it in a database
     
     return NextResponse.json({
       key: {
@@ -86,7 +63,6 @@ export async function POST() {
   }
 }
 
-// DELETE an API key
 export async function DELETE(request: Request) {
   try {
     const user = await getAuthenticatedUser();
@@ -95,14 +71,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    const apiAccess = await checkApiAccessForUser(user.id);
+    if (!apiAccess.allowed && apiAccess.error) {
+      return apiAccess.error;
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
     if (!id) {
       return NextResponse.json({ error: 'API key ID is required' }, { status: 400 });
     }
-    
-    // In a real app, you'd delete the key from the database
     
     return NextResponse.json({ success: true });
   } catch (error) {

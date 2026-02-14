@@ -1,25 +1,22 @@
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr';
 import { ThemeProvider } from 'next-themes';
+import { SessionProvider } from 'next-auth/react';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider 
-      attribute="class" 
-      defaultTheme="dark" 
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      {children}
-    </ThemeProvider>
-  );
-}
-
-// Supabase client for client-side
-export function createSupabaseClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    <SessionProvider>
+      <ThemeProvider 
+        attribute="class" 
+        defaultTheme="dark" 
+        enableSystem={false}
+        disableTransitionOnChange
+      >
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </ThemeProvider>
+    </SessionProvider>
   );
 }

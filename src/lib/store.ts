@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { encrypt, decrypt, generateId } from './encryption';
+import { encodeForStorage, decodeFromStorage, generateId } from './encryption';
 
 export interface Token {
   id: string;
@@ -21,7 +21,7 @@ export interface Activity {
   details?: string;
 }
 
-interface ToknState {
+interface ToknsState {
   // Auth state
   isAuthenticated: boolean;
   user: { email: string; name: string } | null;
@@ -58,7 +58,7 @@ interface ToknState {
   exportToJson: () => string;
 }
 
-export const useToknStore = create<ToknState>()(
+export const useToknsStore = create<ToknsState>()(
   persist(
     (set, get) => ({
       // Initial state
@@ -123,7 +123,7 @@ export const useToknStore = create<ToknState>()(
         const newToken: Token = {
           id: generateId(),
           ...tokenData,
-          token: encrypt(tokenData.token),
+          token: encodeForStorage(tokenData.token),
           createdAt: now,
           updatedAt: now,
         };
@@ -148,7 +148,7 @@ export const useToknStore = create<ToknState>()(
               ? {
                   ...t,
                   ...updates,
-                  token: updates.token ? encrypt(updates.token) : t.token,
+                  token: updates.token ? encodeForStorage(updates.token) : t.token,
                   updatedAt: new Date().toISOString(),
                 }
               : t
@@ -207,7 +207,7 @@ export const useToknStore = create<ToknState>()(
         return tokens
           .map((t) => {
             const serviceName = t.service.toUpperCase().replace(/\s+/g, '_');
-            const tokenValue = decrypt(t.token);
+            const tokenValue = decodeFromStorage(t.token);
             return `${serviceName}=${tokenValue}`;
           })
           .join('\n');
@@ -216,7 +216,7 @@ export const useToknStore = create<ToknState>()(
       exportToJson: () => {
         const tokens = get().tokens.map((t) => ({
           service: t.service,
-          token: decrypt(t.token),
+          token: decodeFromStorage(t.token),
           category: t.category,
           description: t.description,
           status: t.status,
@@ -227,7 +227,7 @@ export const useToknStore = create<ToknState>()(
       },
     }),
     {
-      name: 'tokn-storage',
+      name: 'tokns-storage',
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         user: state.user,
@@ -241,12 +241,11 @@ export const useToknStore = create<ToknState>()(
 
 // Helper hook to get decrypted token
 export function useDecryptedToken(id: string): string | null {
-  const token = useToknStore((state) => state.getToken(id));
+  const token = useToknsStore((state) => state.getToken(id));
   if (!token) return null;
-  return decrypt(token.token);
+  return decodeFromStorage(token.token);
 }
 
-// Helper to decrypt a token string
-export function getDecryptedToken(encrypted: string): string {
-  return decrypt(encrypted);
+export function getDecryptedToken(encoded: string): string {
+  return decodeFromStorage(encoded);
 }

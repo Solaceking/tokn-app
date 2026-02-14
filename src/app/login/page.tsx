@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
+import { signIn } from 'next-auth/react';
 import { Key, Loader2, Github } from 'lucide-react';
 
 export default function LoginPage() {
@@ -12,23 +13,63 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [useLocalAuth, setUseLocalAuth] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(true);
 
-  // Check if Supabase is configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const isSupabaseConfigured = supabaseUrl && supabaseKey && 
-    supabaseUrl !== 'https://your-project.supabase.co' &&
-    supabaseKey !== 'your-anon-key';
+  useEffect(() => {
+    const localAuth = process.env.NEXT_PUBLIC_USE_LOCAL_AUTH === 'true';
+    setUseLocalAuth(localAuth);
+    
+    if (!localAuth) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const configured = !!(
+        supabaseUrl &&
+        supabaseKey &&
+        supabaseUrl !== 'https://your-project.supabase.co' &&
+        supabaseKey !== 'your-anon-key'
+      );
+      setIsConfigured(configured);
+    }
+  }, []);
 
-  const supabase = isSupabaseConfigured 
-    ? createBrowserClient(supabaseUrl, supabaseKey)
+  const supabase = !useLocalAuth && isConfigured
+    ? createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
     : null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLocalLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Invalid email or password');
+      } else {
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSupabaseLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Supabase is not configured. Please set up your .env file with Supabase credentials.');
+    if (!supabase) {
+      setError('Supabase is not configured.');
       return;
     }
 
@@ -47,16 +88,18 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = useLocalAuth ? handleLocalLogin : handleSupabaseLogin;
+
   const handleOAuthSignIn = async (provider: 'github' | 'google') => {
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Supabase is not configured. Please set up your .env file with Supabase credentials.');
+    if (!supabase) {
+      setError('Supabase is not configured.');
       return;
     }
 
@@ -71,42 +114,46 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <Key className="w-8 h-8 text-[#FF9F1C]" />
-          <span className="text-2xl font-bold tracking-wider">TOKN</span>
+          <span className="text-2xl font-bold tracking-wider italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>TOKNS</span>
         </div>
 
-        {/* Login Form */}
         <div className="border-2 border-[#404040] bg-[#171717] p-8">
           <h1 className="text-xl font-bold mb-6 text-center">Sign In</h1>
 
-          {!isSupabaseConfigured && (
+          {!isConfigured && !useLocalAuth && (
             <div className="p-3 border border-yellow-500 bg-yellow-500/10 text-yellow-500 text-sm mb-4">
-              ⚠️ Supabase is not configured. Copy <code className="bg-black/50 px-1">.env.example</code> to <code className="bg-black/50 px-1">.env</code> and add your Supabase credentials.
+              Authentication is not configured. Set USE_LOCAL_AUTH=true or configure Supabase credentials.
             </div>
           )}
 
-          {/* OAuth Buttons */}
-          <div className="space-y-3 mb-6">
-            <button
-              onClick={() => handleOAuthSignIn('github')}
-              disabled={!isSupabaseConfigured}
-              className="w-full p-3 border-2 border-[#404040] hover:border-[#FF9F1C] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Github className="w-5 h-5" />
-              Continue with GitHub
-            </button>
-          </div>
+          {useLocalAuth && (
+            <div className="p-3 border border-blue-500 bg-blue-500/10 text-blue-400 text-sm mb-4">
+              Local authentication mode enabled
+            </div>
+          )}
 
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#404040]"></div>
+          {!useLocalAuth && isConfigured && (
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => handleOAuthSignIn('github')}
+                className="w-full p-3 border-2 border-[#404040] hover:border-[#FF9F1C] flex items-center justify-center gap-2"
+              >
+                <Github className="w-5 h-5" />
+                Continue with GitHub
+              </button>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#404040]"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[#171717] px-2 text-[#737373]">Or continue with email</span>
+                </div>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[#171717] px-2 text-[#737373]">Or continue with email</span>
-            </div>
-          </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -141,7 +188,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !isSupabaseConfigured}
+              disabled={loading || (!useLocalAuth && !isConfigured)}
               className="w-full p-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (

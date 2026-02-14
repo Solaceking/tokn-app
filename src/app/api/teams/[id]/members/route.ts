@@ -1,35 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET team members
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const dbUser = await prisma.users.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    
-    // Check if user is team member
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
-          { ownerId: dbUser.id },
-          { members: { some: { userId: dbUser.id } } }
+          { ownerId: user.id },
+          { members: { some: { userId: user.id } } }
         ]
       }
     });
@@ -38,9 +28,8 @@ export async function GET(
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
     
-    // Get team members
     const members = await prisma.teamMember.findMany({
-      where: { teamId: params.id },
+      where: { teamId: id },
       include: {
         user: {
           select: {
@@ -67,37 +56,27 @@ export async function GET(
   }
 }
 
-// POST - Invite member to team
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { id } = await params;
+    const user = await getAuthenticatedUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const dbUser = await prisma.users.findUnique({
-      where: { email: user.email },
-    });
-    
-    if (!dbUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    
-    // Check if user is team owner/admin
     const team = await prisma.team.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
-          { ownerId: dbUser.id },
+          { ownerId: user.id },
           { 
             members: { 
               some: { 
-                userId: dbUser.id,
+                userId: user.id,
                 role: { in: ['OWNER', 'ADMIN'] }
               } 
             } 
@@ -119,7 +98,6 @@ export async function POST(
       }, { status: 400 });
     }
     
-    // Find user to invite
     const invitedUser = await prisma.users.findUnique({
       where: { email: email.toLowerCase() }
     });
@@ -130,11 +108,10 @@ export async function POST(
       }, { status: 404 });
     }
     
-    // Check if already a member
     const existingMember = await prisma.teamMember.findUnique({
       where: {
         teamId_userId: {
-          teamId: params.id,
+          teamId: id,
           userId: invitedUser.id
         }
       }
@@ -146,10 +123,9 @@ export async function POST(
       }, { status: 400 });
     }
     
-    // Add member
     const member = await prisma.teamMember.create({
       data: {
-        teamId: params.id,
+        teamId: id,
         userId: invitedUser.id,
         role: 'MEMBER'
       },

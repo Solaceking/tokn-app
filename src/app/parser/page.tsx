@@ -22,12 +22,7 @@ import { scanForTokens, DetectedToken } from '@/lib/token-parser';
 import { useAppTheme } from '@/hooks/use-theme';
 import { maskToken } from '@/lib/encryption';
 import { cn } from '@/lib/utils';
-import { createBrowserClient } from '@supabase/ssr';
 
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function ParserPage() {
   const { theme, toggleTheme } = useAppTheme();
@@ -146,8 +141,8 @@ export default function ParserPage() {
         {/* Logo */}
         <div className="p-4 border-b border-[#404040] flex items-center gap-3">
           <Key className="w-6 h-6 text-[#FF9F1C]" />
-          <Link href="/dashboard" className="text-xl font-bold text-white tracking-wider hover:text-[#FF9F1C]">
-            TOKN
+          <Link href="/dashboard" className="text-xl font-bold text-white tracking-wider hover:text-[#FF9F1C] italic" style={{ transform: 'skewX(-3deg)', display: 'inline-block' }}>
+            TOKNS
           </Link>
         </div>
 

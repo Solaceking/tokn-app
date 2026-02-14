@@ -1,7 +1,7 @@
-# TOKN - Open Source Token Manager
+# TOKNS - Open Source Token Manager
 
 <p align="center">
-  <img src="public/logo.svg" alt="TOKN" width="128" height="128">
+  <img src="public/logo.svg" alt="TOKNS" width="128" height="128">
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 ### One-Click to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Solaceking/tokn-app)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Solaceking/tokns-app)
 
 1. Click the button above
 2. Fork this repository
@@ -63,8 +63,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Solaceking/tokn-app.git
-cd tokn-app
+git clone https://github.com/Solaceking/tokns-app.git
+cd tokns-app
 
 # 2. Install dependencies
 npm install

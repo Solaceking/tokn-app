@@ -36,7 +36,7 @@ export function TokenHealthChecker({ tokens, onHealthCheckComplete }: TokenHealt
   const [results, setResults] = useState<TokenHealthResult[]>([]);
   const [showResults, setShowResults] = useState(false);
 
-  const checkTokenHealth = async (token: { id: string; service: string; category: string }) => {
+  const checkTokenHealth = async (token: { id: string; service: string; category: string }): Promise<TokenHealthResult> => {
     try {
       const res = await fetch(`/api/tokens/${token.id}/test`, {
         method: 'POST',

@@ -38,7 +38,7 @@ const steps: TutorialStep[] = [
   },
 ];
 
-const STORAGE_KEY = 'tokn_welcome_dismissed';
+const STORAGE_KEY = 'tokns_welcome_dismissed';
 
 export function WelcomeTutorial() {
   const [isVisible, setIsVisible] = useState(false);

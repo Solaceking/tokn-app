@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase';
+import { signOut, useSession } from 'next-auth/react';
 import {
   Key,
   User,
@@ -27,69 +28,89 @@ import {
   Plus,
   UserPlus,
   Settings as SettingsIcon,
+  Lock,
+  ExternalLink,
 } from 'lucide-react';
 import { ProviderSettings as AIProviderSettings } from '@/components/providers/ProviderSettings';
+import { TeamsSettings } from '@/components/TeamsSettings';
 
-// Create Supabase client
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
- 
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [session, setSession] = useState<any>(null);
+  const [useLocalAuth, setUseLocalAuth] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { data: nextAuthSession } = useSession();
+  const supabase = createClient();
   
-  // Get initial tab from URL or default to 'appearance'
   const initialTab = searchParams.get('tab') || 'appearance';
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // User state
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null; avatar_url: string | null; createdAt: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email: string; name: string | null; avatar_url: string | null; plan?: string; createdAt: string } | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Form states
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
-  // Theme
   const [theme, setTheme] = useState('dark');
   
-  // Security
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   
-  // API Keys
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Check session on mount
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session: supabaseSession } } = await supabase.auth.getSession();
-      setSession(supabaseSession);
-      setSessionLoading(false);
-    };
-    checkSession();
+    const localAuth = process.env.NEXT_PUBLIC_USE_LOCAL_AUTH === 'true';
+    setUseLocalAuth(localAuth);
+    
+    if (!localAuth) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const configured = !!(
+        supabaseUrl &&
+        supabaseKey &&
+        supabaseUrl !== 'https://your-project.supabase.co' &&
+        supabaseKey !== 'your-anon-key'
+      );
+      setIsConfigured(configured);
+    }
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading && !session) {
+    const checkSession = async () => {
+      if (useLocalAuth) {
+        if (nextAuthSession?.user) {
+          setIsAuthenticated(true);
+        }
+        setSessionLoading(false);
+      } else {
+        const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+        if (supabaseSession) {
+          setIsAuthenticated(true);
+        }
+        setSessionLoading(false);
+      }
+    };
+    checkSession();
+  }, [useLocalAuth, nextAuthSession, supabase]);
+
+  useEffect(() => {
+    if (!sessionLoading && !isAuthenticated) {
       router.push('/login');
       return;
     }
-    if (session) {
+    if (isAuthenticated) {
       fetchUserData();
       fetchApiKeys();
     }
-  }, [session, sessionLoading]);
+  }, [sessionLoading, isAuthenticated]);
 
   const fetchUserData = async () => {
     try {
@@ -133,12 +154,11 @@ function SettingsContent() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully' });
-        // Refresh user data
         fetchUserData();
       } else {
         setMessage({ type: 'error', text: 'Failed to update profile' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'An error occurred' });
     } finally {
       setSaving(false);
@@ -182,7 +202,7 @@ function SettingsContent() {
         const data = await res.json();
         setMessage({ type: 'error', text: data.error || 'Failed to change password' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'An error occurred' });
     } finally {
       setChangingPassword(false);
@@ -200,7 +220,7 @@ function SettingsContent() {
         setApiKeys([...apiKeys, data.key]);
         setMessage({ type: 'success', text: 'API key generated' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to generate API key' });
     } finally {
       setGeneratingKey(false);
@@ -215,13 +235,17 @@ function SettingsContent() {
       if (res.ok) {
         setApiKeys(apiKeys.filter(k => k.id !== keyId));
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Failed to delete API key' });
     }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (useLocalAuth) {
+      await signOut({ redirect: false });
+    } else {
+      await supabase.auth.signOut();
+    }
     router.push('/');
   };
 
@@ -241,17 +265,21 @@ function SettingsContent() {
         method: 'DELETE',
       });
       if (res.ok) {
-        await supabase.auth.signOut();
+        if (useLocalAuth) {
+          await signOut({ redirect: false });
+        } else {
+          await supabase.auth.signOut();
+        }
         router.push('/');
       } else {
         alert('Failed to delete account');
       }
-    } catch (error) {
+    } catch {
       alert('An error occurred');
     }
   };
 
-  if (loading || !session) {
+  if (loading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#FF9F1C]" />
@@ -286,12 +314,11 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
       <header className="border-b-2 border-[#404040]">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Key className="w-6 h-6 text-[#FF9F1C]" />
-            <span className="text-xl font-bold tracking-wider">TOKN</span>
+            <span className="text-xl font-bold tracking-wider italic" style={{ transform: 'skewX(-8deg)', display: 'inline-block' }}>TOKNS</span>
           </div>
           <nav className="flex items-center gap-4">
             <Link href="/dashboard" className="text-[#737373] hover:text-white">
@@ -309,7 +336,6 @@ function SettingsContent() {
         <h1 className="text-2xl font-bold mb-8">Settings</h1>
 
         <div className="flex gap-8">
-          {/* Sidebar */}
           <nav className="w-48 space-y-1">
             {tabs.map((tab) => (
               <button
@@ -327,9 +353,7 @@ function SettingsContent() {
             ))}
           </nav>
 
-          {/* Content */}
           <div className="flex-1">
-            {/* Appearance Tab */}
             {activeTab === 'appearance' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -337,7 +361,7 @@ function SettingsContent() {
                   Appearance
                 </h2>
                 <p className="text-[#737373] text-sm mb-6">
-                  Customize how TOKN looks on your device.
+                  Customize how TOKNS looks on your device.
                 </p>
 
                 <div className="space-y-4">
@@ -368,7 +392,6 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -387,7 +410,6 @@ function SettingsContent() {
                     </div>
                   )}
 
-                  {/* Avatar Preview */}
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-20 h-20 bg-[#262626] border-2 border-[#404040] flex items-center justify-center overflow-hidden">
                       {avatarUrl ? (
@@ -446,7 +468,6 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* Plan Tab */}
             {activeTab === 'plan' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -454,7 +475,6 @@ function SettingsContent() {
                   Your Plan
                 </h2>
                 
-                {/* Current Plan */}
                 <div className={`p-4 border-2 mb-6 ${isPro ? 'border-[#FF9F1C] bg-[#FF9F1C]/10' : 'border-[#404040]'}`}>
                   <div className="flex items-center justify-between">
                     <div>
@@ -487,7 +507,6 @@ function SettingsContent() {
                   </div>
                 </div>
 
-                {/* Pricing */}
                 {!isPro && (
                   <div className="border-2 border-[#404040] p-6">
                     <h3 className="font-bold mb-4">Pro Plan - $7.99/user/month</h3>
@@ -513,7 +532,6 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* Teams Tab */}
             {activeTab === 'teams' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -547,7 +565,6 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* AI Providers Tab */}
             {activeTab === 'ai-providers' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -558,69 +575,71 @@ function SettingsContent() {
                   Configure AI providers for smart token parsing. Your API keys are encrypted and stored securely.
                 </p>
                 
-                {/* AI Provider Settings Component */}
                 <div id="ai-providers-content">
                   <AIProviderSettings />
                 </div>
               </div>
             )}
 
-            {/* Security Tab */}
             {activeTab === 'security' && (
               <div className="space-y-6">
-                {/* Change Password */}
                 <div className="border-2 border-[#404040] bg-[#171717] p-6">
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <Shield className="w-5 h-5 text-[#FF9F1C]" />
                     Change Password
                   </h2>
 
-                  <form onSubmit={handleChangePassword} className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-[#737373] mb-2">Current Password</label>
-                      <input
-                        type="password"
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
-                        required
-                      />
-                    </div>
+                  {useLocalAuth ? (
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-[#737373] mb-2">Current Password</label>
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
+                          required
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm text-[#737373] mb-2">New Password</label>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
-                        required
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-sm text-[#737373] mb-2">New Password</label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
+                          required
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-sm text-[#737373] mb-2">Confirm New Password</label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
-                        required
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-sm text-[#737373] mb-2">Confirm New Password</label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full p-3 bg-black border-2 border-[#404040] focus:border-[#FF9F1C] outline-none"
+                          required
+                        />
+                      </div>
 
-                    <button
-                      type="submit"
-                      disabled={changingPassword}
-                      className="w-full p-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                      Change Password
-                    </button>
-                  </form>
+                      <button
+                        type="submit"
+                        disabled={changingPassword}
+                        className="w-full p-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                        Change Password
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-[#737373] text-sm">
+                      Password changes are managed through Supabase authentication.
+                    </p>
+                  )}
                 </div>
 
-                {/* Danger Zone */}
                 <div className="border-2 border-red-900/50 bg-red-900/5 p-6">
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-red-500">
                     <Trash2 className="w-5 h-5" />
@@ -640,7 +659,6 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* API Keys Tab */}
             {activeTab === 'api' && (
               <div className="border-2 border-[#404040] bg-[#171717] p-6">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -648,56 +666,111 @@ function SettingsContent() {
                   API Keys
                 </h2>
                 <p className="text-[#737373] text-sm mb-6">
-                  Manage API keys for programmatic access to your TOKN account.
+                  Manage API keys for programmatic access to your TOKNS account.
                 </p>
 
-                {message.text && (
-                  <div className={`p-3 text-sm mb-4 ${
-                    message.type === 'success' 
-                      ? 'border border-green-500 bg-green-500/10 text-green-500' 
-                      : 'border border-red-500 bg-red-500/10 text-red-500'
-                  }`}>
-                    {message.text}
-                  </div>
-                )}
-
-                <div className="space-y-4 mb-6">
-                  {apiKeys.map((key) => (
-                    <div key={key.id} className="flex items-center justify-between p-3 bg-black border border-[#404040]">
-                      <div>
-                        <div className="font-mono text-sm">
-                          {key.prefix}...{key.suffix}
-                        </div>
-                        <div className="text-xs text-[#737373]">
-                          Created {new Date(key.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => copyToClipboard(key.fullKey)}
-                          className="p-2 text-[#737373] hover:text-[#FF9F1C]"
-                        >
-                          {copiedKey === key.fullKey ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteApiKey(key.id)}
-                          className="p-2 text-[#737373] hover:text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                {!isPro ? (
+                  <div className="border-2 border-[#FF9F1C] bg-[#FF9F1C]/10 p-6 rounded-lg mb-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Lock className="w-6 h-6 text-[#FF9F1C]" />
+                      <span className="font-bold text-[#FF9F1C]">Upgrade to PRO for API Access</span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-sm text-[#737373] mb-4">
+                      Programmatic API access is a PRO feature. Generate API keys and integrate TOKNS with your CI/CD pipelines, scripts, and applications.
+                    </p>
+                    <ul className="space-y-2 text-sm text-[#737373] mb-4">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> REST API for token CRUD operations
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> API key management
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> Webhook integrations
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" /> CI/CD integration
+                      </li>
+                    </ul>
+                    <button
+                      onClick={handleUpgrade}
+                      className="w-full py-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Upgrade to PRO
+                    </button>
+                    <a 
+                      href="/docs/api" 
+                      className="flex items-center justify-center gap-2 mt-4 text-sm text-[#FF9F1C] hover:underline"
+                    >
+                      View API Documentation
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <>
+                    {message.text && (
+                      <div className={`p-3 text-sm mb-4 ${
+                        message.type === 'success' 
+                          ? 'border border-green-500 bg-green-500/10 text-green-500' 
+                          : 'border border-red-500 bg-red-500/10 text-red-500'
+                      }`}>
+                        {message.text}
+                      </div>
+                    )}
 
-                <button
-                  onClick={handleGenerateApiKey}
-                  disabled={generatingKey}
-                  className="w-full p-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {generatingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-                  Generate New API Key
-                </button>
+                    <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500 mb-6">
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span className="text-sm text-green-500">API access enabled with your PRO plan</span>
+                    </div>
+
+                    <div className="space-y-4 mb-6">
+                      {apiKeys.map((key) => (
+                        <div key={key.id} className="flex items-center justify-between p-3 bg-black border border-[#404040]">
+                          <div>
+                            <div className="font-mono text-sm">
+                              {key.prefix}...{key.suffix}
+                            </div>
+                            <div className="text-xs text-[#737373]">
+                              Created {new Date(key.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => copyToClipboard(key.fullKey)}
+                              className="p-2 text-[#737373] hover:text-[#FF9F1C]"
+                            >
+                              {copiedKey === key.fullKey ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteApiKey(key.id)}
+                              className="p-2 text-[#737373] hover:text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={handleGenerateApiKey}
+                      disabled={generatingKey}
+                      className="w-full p-3 bg-[#FF9F1C] text-black font-bold hover:bg-[#FF9F1C]/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {generatingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                      Generate New API Key
+                    </button>
+                    
+                    <a 
+                      href="/docs/api" 
+                      className="flex items-center justify-center gap-2 mt-4 text-sm text-[#FF9F1C] hover:underline"
+                    >
+                      View API Documentation
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </>
+                )}
               </div>
             )}
           </div>
